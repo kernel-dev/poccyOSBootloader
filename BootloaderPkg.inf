@@ -1,0 +1,37 @@
+[Defines]
+  INF_VERSION = 1.25
+  BASE_NAME = KernelOSBootloader
+  FILE_GUID = 8bef9eb5-0aeb-4676-bafd-b8d55dedb70f
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT = KernEfiMain
+ 
+[Sources]
+  src/Bootloader/Bootloader.c
+  src/Bootloader/KernelLoader.c
+  src/Bootloader/Acpi/KernEfiAcpi.c
+  src/Bootloader/Graphics/KernGop.c
+  src/Bootloader/Memory/KernEfiMem.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+ 
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+ 
+[Guids]
+  gEfiFileInfoGuid
+ 
+[Ppis]
+ 
+[Protocols]
+ 
+[FeaturePcd]
+ 
+[Pcd]
+
+[FixedPcd]
+  gEfiMdePkgTokenSpaceGuid.PcdImageLoaderProhibitTe
+  gEfiMdePkgTokenSpaceGuid.PcdImageLoaderAlignmentPolicy
