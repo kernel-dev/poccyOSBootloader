@@ -20,6 +20,10 @@
   UefiApplicationEntryPoint
   UefiLib
   UefiBootServicesTableLib
+  PeCoffLib2
+  DebugLib
+  PcdLib
+  UefiImageLib
  
 [Guids]
   gEfiFileInfoGuid
@@ -33,5 +37,3 @@
 [Pcd]
 
 [FixedPcd]
-  gEfiMdePkgTokenSpaceGuid.PcdImageLoaderProhibitTe
-  gEfiMdePkgTokenSpaceGuid.PcdImageLoaderAlignmentPolicy
