@@ -6,9 +6,8 @@
 #include "../Common/Memory/KernEfiMem.h"
 
 #include <Uefi.h>
-#include <Library/UefiLib.h>
 
-#define IS_ALIGNED(x, y)    ((((x) & (y - 1)) == 0))
+#include <Library/UefiLib.h>
 
 typedef struct {
     ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE *Dsdt;

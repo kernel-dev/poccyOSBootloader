@@ -1,6 +1,7 @@
 #include "../../Common/Graphics/KernGop.h"
 
 #include <Uefi.h>
+
 #include <Library/UefiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
@@ -34,14 +35,14 @@ KernGetVideoMode (
     Status = GOP->QueryMode(
         GOP, 
         GOP->Mode == NULL ? 0 : GOP->Mode->Mode,
-        &SizeOfInfo,
+        SizeOfInfo,
         &Info);
 
     if (Status == EFI_NOT_STARTED)
         GOP->SetMode(GOP, 0);
 
     else if (EFI_ERROR(Status))
-        return EFI_NOT_FOUND;
+        return Status;
 
     return EFI_SUCCESS;
 }

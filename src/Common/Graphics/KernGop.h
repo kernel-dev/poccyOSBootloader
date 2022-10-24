@@ -2,6 +2,7 @@
 #define KERNGOP_H
 
 #include <Uefi.h>
+
 #include <Library/UefiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
