@@ -1,5 +1,5 @@
 # Move to EDK2 directory
-cd /Users/kernel/Documents/edk2-master/edk2/
+cd /Users/kernel/Documents/edk2-oofer/edk2/
 
 # Source edksetup.sh to reconfigure config
 . edksetup.sh
@@ -17,4 +17,4 @@ cp ../Build/OvmfX64/RELEASE_XCODE5/FV/OVMF.fd ../KernelOSPkg/bootloader/bios.bin
 # Copy EFI binary
 mkdir EFI 2> /dev/null
 cp ../Build/MdeModule/RELEASE_XCODE5/X64/BootloaderPkg/BootloaderPkg/OUTPUT/KernelOSBootloader.efi EFI/KernelOSBootloader.efi
-cp ./EFI/KernelOSBootloader.efi /Users/kernel/Documents/edk2-master/edk2/KernelOSPkg/hda-contents/EFI/BOOT/BOOTX64.efi
+cp ./EFI/KernelOSBootloader.efi /Users/kernel/Documents/edk2-oofer/edk2/KernelOSPkg/hda-contents/EFI/BOOT/BOOTX64.efi
