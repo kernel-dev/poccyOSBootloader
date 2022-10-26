@@ -126,7 +126,10 @@ KernEfiMain (
 
     Print(L"[GOP]: GOP MODE = %lu\r\n", GOP->Mode == NULL ? 0 : GOP->Mode->Mode);
 
-    Status = KernGetVideoMode(&GOP, &Info, &SizeOfInfo);
+    Status = KernGetVideoMode (
+        &GOP, 
+        &Info, 
+        &SizeOfInfo);
 
     if (Status == EFI_NOT_FOUND)
     {
@@ -160,15 +163,12 @@ KernEfiMain (
     HANDLE_STATUS(
         Status,
         L"FAILED TO ALLOCATE MEMORY POOL FOR Framebuffer PTR\r\n");
-    
-    Framebuffer->FramebufferBase = GOP->Mode->FrameBufferBase;
-    Framebuffer->FramebufferSize = GOP->Mode->FrameBufferSize;
-    Framebuffer->VerticalRes     = GOP->Mode->Info->VerticalResolution;
-    Framebuffer->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
-    Framebuffer->PPS             = GOP->Mode->Info->PixelsPerScanLine;
-    Framebuffer->Width           = 4;
-    Framebuffer->Pitch           = Framebuffer->Width * Framebuffer->PPS;
-    Framebuffer->PixelBitmask    = GOP->Mode->Info->PixelInformation;
+
+    //
+    //  Only need the wanted video mode (1366x768)
+    //  value that is supported. Setting the mode itself
+    //  is handled within KernelLoader.c
+    //
     Framebuffer->CurrentMode     = SelectedMode;
 
     Print(L"[GOP]: Successfully obtained framebuffer.\r\n");
@@ -177,8 +177,8 @@ KernEfiMain (
         ImageHandle,
         SystemTable,
         &Dsdt,
-        &Framebuffer,
-        &GOP
+        Framebuffer,
+        GOP
     );
 
     return EFI_NOT_FOUND;
