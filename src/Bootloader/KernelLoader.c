@@ -27,8 +27,8 @@ RunKernelPE (
     IN EFI_HANDLE                                   ImageHandle,
     IN EFI_SYSTEM_TABLE                             *SystemTable,
     IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,
-    IN KERN_FRAMEBUFFER                             **FB,
-    IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 **GOP)
+    IN KERN_FRAMEBUFFER                             *FB,
+    IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 *GOP)
 {
     EFI_STATUS                  Status;
     EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage;
@@ -277,10 +277,39 @@ RunKernelPE (
 
     Print(L"Hello, Kernel!\r\n");
 
-    (*GOP)->SetMode(*GOP, (*FB)->CurrentMode);
+    GOP->SetMode(GOP, FB->CurrentMode);
 
-    Print(L"[GOP]: Mode = %lu\r\n", (*FB)->CurrentMode);
-    Print(L"[GOP]: Set mode!\r\n");
+    Print(L"[GOP]: Mode = %lu\r\n", FB->CurrentMode);
+    Print(L"[GOP]: Successfully set mode.\r\n");
+
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info;
+    UINTN SizeOfInfo;
+
+    Status = SystemTable->BootServices->AllocatePool (
+        EfiLoaderCode, 
+        sizeof(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION),
+        (VOID **)&Info);
+    HANDLE_STATUS(
+        Status,
+        L"FAILED TO ALLOCATE MEMORY POOL FOR GOP INFO\r\n");
+
+    Status = GOP->QueryMode (
+        GOP,
+        FB->CurrentMode, 
+        &SizeOfInfo, 
+        &Info);
+    HANDLE_STATUS(
+        Status,
+        L"FAILED TO QUERY CURRENT VIDEO MODE\r\n");
+
+    FB->FramebufferBase = GOP->Mode->FrameBufferBase;
+    FB->FramebufferSize = GOP->Mode->FrameBufferSize;
+    FB->HorizontalRes   = Info->HorizontalResolution;
+    FB->VerticalRes     = Info->VerticalResolution;
+    FB->PPS             = Info->PixelsPerScanLine;
+    FB->Width           = 4;
+    FB->Pitch           = FB->PPS * FB->Width;
+    FB->PixelBitmask    = Info->PixelInformation;
 
     EFI_KERN_MEMORY_MAP     MemoryMap;
 
@@ -300,50 +329,10 @@ RunKernelPE (
         return EFI_NOT_FOUND;
     }
 
-    // else if (MemoryMap.MemoryMap != NULL)
-    // {
-    //     UINT64 Region                           = 1;
-    //     UINT64 MemorySize                       = 0;
-    //     EFI_MEMORY_DESCRIPTOR *MemoryMapEntry   = MemoryMap.MemoryMap;
-    //     EFI_MEMORY_DESCRIPTOR *MemoryMapEnd     = (EFI_MEMORY_DESCRIPTOR *) (
-    //         (UINT8 *)(MemoryMap.MemoryMap) + (MemoryMap.MemoryMapSize)
-    //     );
-
-    //     Print(
-    //         L"===> [EFIMEM]: First mem map entry = %llu | Second mem map entry = %llu\n",
-    //         MemoryMapEntry,
-    //         MemoryMapEnd);
-
-    //     while (MemoryMapEntry < MemoryMapEnd)
-    //     {
-    //         if (
-    //             MemoryMapEntry->PhysicalStart > 0 && 
-    //             MemoryMapEntry->PhysicalStart < MEMORY_UPPER_BOUNDARY
-    //         )
-    //         {
-    //             Print(L"===> [EFIMEM]: Region = %llu\n", Region);
-    //             Print(L"===> [EFIMEM]: Number of pages = %llu\n", MemoryMapEntry->NumberOfPages);
-    //             Print(L"===> [EFIMEM]: Physical start = 0x%lx\n", MemoryMapEntry->PhysicalStart);
-    //             Print(L"===> [EFIMEM]: Virtual start = 0x%lx\n\n", MemoryMapEntry->VirtualStart);
-    //             Print(L"===> [EFIMEM]: Type = %u\n", MemoryMapEntry->Type);
-    //             Print(L"===> [EFIMEM]: Attribute = %llu\n\n", MemoryMapEntry->Attribute);
-
-    //             MemorySize += MemoryMapEntry->NumberOfPages * 4096;
-    //         }
-
-    //         MemoryMapEntry = NEXT_MEMORY_DESCRIPTOR(MemoryMapEntry, MemoryMap.DescriptorSize);
-    //         Region++;
-    //     }
-
-    //     Print(L"===> [EFIMEM]: Memory size = %llu\n", MemorySize);
-    //     Print(L"===> [EFIMEM]: Size of memory map = %llu\n", MemoryMap.MemoryMapSize);
-    //     Print(L"===> [EFIMEM]: Size of each region = %llu\n\n", MemoryMap.DescriptorSize);
-    // }
-
-    LoaderBlock->MemoryMap = &MemoryMap;
-    LoaderBlock->Dsdt      = Dsdt;
-    LoaderBlock->RT        = SystemTable->RuntimeServices;
-    LoaderBlock->FB        = FB;
+    LoaderBlock->MemoryMap          = &MemoryMap;
+    LoaderBlock->Dsdt               = Dsdt;
+    LoaderBlock->RT                 = SystemTable->RuntimeServices;
+    LoaderBlock->Framebuffer        = FB;
 
     HANDLE_STATUS(
         SystemTable->BootServices->ExitBootServices(
