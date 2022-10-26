@@ -35,5 +35,6 @@
 [FeaturePcd]
  
 [Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask
 
 [FixedPcd]
