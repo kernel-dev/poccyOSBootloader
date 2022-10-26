@@ -26,8 +26,9 @@ EFI_STATUS
 RunKernelPE (
     IN EFI_HANDLE                                   ImageHandle,
     IN EFI_SYSTEM_TABLE                             *SystemTable,
-    IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt,
-    IN KERN_FRAMEBUFFER                             *FB)
+    IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,
+    IN KERN_FRAMEBUFFER                             **FB,
+    IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 **GOP)
 {
     EFI_STATUS                  Status;
     EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage;
@@ -157,7 +158,7 @@ RunKernelPE (
     Print(L"Physical size: %llu\r\n", FileInfo->PhysicalSize);
     Print(L"Attribute: %llx\r\n", FileInfo->Attribute);
 
-    VOID            *Kernel;
+    VOID *Kernel;
 
     Status = SystemTable->BootServices->AllocatePool (
                 EfiLoaderCode, 
@@ -181,73 +182,6 @@ RunKernelPE (
 
         return EFI_NOT_FOUND;
     }
-
-    // CONST EFI_IMAGE_DOS_HEADER *Header = (CONST EFI_IMAGE_DOS_HEADER *) (CONST VOID *) ((CONST CHAR8 *)Kernel);
-
-    // if (Header->e_magic != EFI_IMAGE_DOS_SIGNATURE) // Not MZ (in UINT16)
-    // {
-    //     Print(L"INVALID DOS HEADER SIGNATURE!\r\n");
-
-    //     return EFI_INVALID_PARAMETER;
-    // }
-
-    // CONST EFI_IMAGE_NT_HEADERS_COMMON_HDR *NtHeader = (CONST EFI_IMAGE_NT_HEADERS_COMMON_HDR *) (CONST VOID *) (
-    //     ((CONST CHAR8 *)Kernel) + (UINT64)Header->e_lfanew
-    // );
-
-    // if (NtHeader->Signature != EFI_IMAGE_NT_SIGNATURE) // Not "PE\0\0" (in UINT32)
-    // {
-    //     Print(L"INVALID SIGNATURE FOR NT!\r\n");
-
-    //     return EFI_INVALID_PARAMETER;
-    // }
-
-    // Print(L"NT Signature: 0x%lx\r\n", NtHeader->Signature);
-
-    // UINT16                  NumberOfSections = NtHeader->FileHeader.NumberOfSections;
-
-    // Print(L"PE Header machine: 0x%x\r\n", NtHeader->FileHeader.Machine);
-    // Print(L"PE Header numofsect: %lu\r\n", NumberOfSections);
-    // Print(L"PE Header numofsyms: %llu\r\n", NtHeader->FileHeader.NumberOfSymbols);
-    // Print(L"PE Header size of opt: %lu\r\n", NtHeader->FileHeader.SizeOfOptionalHeader);
-
-    // CONST EFI_IMAGE_NT_HEADERS64 *OptionalHeader = (CONST EFI_IMAGE_NT_HEADERS64 *) (CONST VOID *) (
-    //     ((CONST CHAR8 *)Kernel) + (UINT64)Header->e_lfanew + sizeof(EFI_IMAGE_NT_HEADERS_COMMON_HDR)
-    // );
-
-    // Print(L"Optional header magic: 0x%x\r\n", OptionalHeader->Magic);
-    // Print(L"Optional header img_base: %llu\r\n", OptionalHeader->ImageBase);
-    // Print(L"Optional header entry: %llu\r\n", OptionalHeader->AddressOfEntryPoint);
-    // Print(L"Optional header major OS: %lu\r\n", OptionalHeader->MajorOperatingSystemVersion);
-    // Print(L"Optional header minor OS: %lu\r\n", OptionalHeader->MinorOperatingSystemVersion);
-    // Print(L"--> Image base: 0x%llx\r\n", OptionalHeader->ImageBase);
-    // Print(L"--> Entry point addr: 0x%lx\r\n", OptionalHeader->AddressOfEntryPoint);
-
-    // if (NtHeader->FileHeader.NumberOfSections == 0)
-    // {
-    //     Print(L"No data for sections... halting boot.\r\n");
-
-    //     return EFI_UNSUPPORTED;
-    // }
-
-    // Print(L"ATTEMPTING TO READ SECTION HEADER TABLE...\r\n");
-
-    // UINT32                              SectionAlignment = EFI_PAGE_SIZE;
-    // UINT64                              VirtSize = 0;
-    // CONST EFI_IMAGE_SECTION_HEADER      *SectionHeadersTable = (CONST EFI_IMAGE_SECTION_HEADER *) (CONST VOID *) (
-    //     ((CONST CHAR8 *)Kernel) + sizeof(EFI_IMAGE_NT_HEADERS64) + (UINT64)Header->e_lfanew
-    // );
-
-    // Print(L"--> NumOfSec: %u\r\n", NumberOfSections);
-
-    // Print(L"SUCCESSFULLY READ SECTION HEADER TABLE!\r\n");
-
-    // if (OptionalHeader->SizeOfHeaders > FileSize)
-    // {
-    //     Print(L"Size of section headers is out of bounds.\r\n");
-
-    //     return EFI_INVALID_PARAMETER;
-    // }
 
     PE_COFF_LOADER_IMAGE_CONTEXT *Context = NULL;
     EFI_PHYSICAL_ADDRESS         LoadImg = 0;
@@ -341,14 +275,12 @@ RunKernelPE (
 
     Print(L"ALLOCATED MEMORY POOL!\r\n");
 
-    Status = SystemTable->BootServices->FreePages (
-                LoadImg, 
-                EFI_SIZE_TO_PAGES(FinalSize));
-    HANDLE_STATUS(
-        Status,
-        L"FAILED TO FREE ALLOCATED MEMORY PAGES\r\n");
+    Print(L"Hello, Kernel!\r\n");
 
-    Print(L"FREED ALLOCATED MEMORY PAGES!\r\n");
+    (*GOP)->SetMode(*GOP, (*FB)->CurrentMode);
+
+    Print(L"[GOP]: Mode = %lu\r\n", (*FB)->CurrentMode);
+    Print(L"[GOP]: Set mode!\r\n");
 
     EFI_KERN_MEMORY_MAP     MemoryMap;
 
@@ -367,8 +299,6 @@ RunKernelPE (
 
         return EFI_NOT_FOUND;
     }
-
-    return EFI_NOT_FOUND;
 
     // else if (MemoryMap.MemoryMap != NULL)
     // {
