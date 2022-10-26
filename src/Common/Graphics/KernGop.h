@@ -6,24 +6,16 @@
 #include <Library/UefiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
-//
-//  Resolution  = 1280x1024
-//  Colors      = 256
-//  T/G         = G
-//  Charblock   = 8x16
-//  Alphares    = 160x64
-//
-#define KERN_GRAPHICS_VIDEO_MODE    0x107
-
 typedef struct {
-    UINT64              FramebufferBase;
-    UINT64              FramebufferSize;
-    UINT64              HorizontalRes;
-    UINT64              VerticalRes;
-    UINT64              PPS; // Pixels Per Scanline
-    UINT64              Pitch;
-    UINT64              Width;
-    EFI_PIXEL_BITMASK   PixelBitmask;
+    EFI_PHYSICAL_ADDRESS                FramebufferBase;
+    EFI_PHYSICAL_ADDRESS                FramebufferSize;
+    UINT64                              HorizontalRes;
+    UINT64                              VerticalRes;
+    UINT64                              PPS; // Pixels Per Scanline
+    UINT64                              Pitch;
+    UINT64                              Width;
+    EFI_PIXEL_BITMASK                   PixelBitmask;
+    UINT64                              CurrentMode;
 } KERN_FRAMEBUFFER;
 
 /**
@@ -39,7 +31,7 @@ typedef struct {
 EFI_STATUS
 KernLocateGop (
     IN  EFI_SYSTEM_TABLE                *SystemTable,
-    OUT EFI_GRAPHICS_OUTPUT_PROTOCOL    *GOP);
+    OUT EFI_GRAPHICS_OUTPUT_PROTOCOL    **GOP);
 
 /**
     Obtains the current video mode.
@@ -52,8 +44,8 @@ KernLocateGop (
  **/
 EFI_STATUS
 KernGetVideoMode (
-    IN  EFI_GRAPHICS_OUTPUT_PROTOCOL            *GOP,
-    OUT EFI_GRAPHICS_OUTPUT_MODE_INFORMATION    *Info,
+    IN  EFI_GRAPHICS_OUTPUT_PROTOCOL            **GOP,
+    OUT EFI_GRAPHICS_OUTPUT_MODE_INFORMATION    **Info,
     OUT UINTN                                   *SizeOfInfo);
 
 /**
@@ -70,9 +62,9 @@ KernGetVideoMode (
  **/
 BOOLEAN
 KernModeAvailable (
-    IN UINT32                                   VideoMode,
-    IN UINTN                                    *SizeOfInfo,
-    IN EFI_GRAPHICS_OUTPUT_PROTOCOL             *GOP,
-    IN EFI_GRAPHICS_OUTPUT_MODE_INFORMATION     *Info);
+    IN  UINTN                                    *SizeOfInfo,
+    IN  EFI_GRAPHICS_OUTPUT_PROTOCOL             **GOP,
+    IN  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION     **Info,
+    OUT UINT32                                   *Mode);
 
 #endif /* KernGop.h */
