@@ -2,6 +2,7 @@
 #include "../Common/Memory/KernEfiMem.h"
 #include "../Common/Graphics/KernGop.h"
 #include "KernelLoader.h"
+#include "Bootloader.h"
 
 #include <Uefi.h>
 
@@ -29,20 +30,20 @@ KernEfiMain (
 
     if (Rsdp == NULL)
     {
-        Print(L"===> [ACPI]: Could not find Rsdp...");
+        Print(L"[ACPI]: Could not find Rsdp...");
 
         return Status;
     }
 
     else if (EFI_ERROR(Status))
     {
-        Print(L"===> [ACPI]: Error occurred during discovery!\n");
+        Print(L"[ACPI]: Error occurred during discovery!\n");
 
         return Status;
     }
 
     Print(
-        L"===> [RSDP]: OemId = %c%c%c%c%c%c\n",
+        L"[RSDP]: OemId = %c%c%c%c%c%c\n",
         Rsdp->OemId[0],
         Rsdp->OemId[1],
         Rsdp->OemId[2],
@@ -51,13 +52,13 @@ KernEfiMain (
         Rsdp->OemId[5]);
 
     Print(
-        L"===> [RSDP]: Signature Valid = %s\n\n", 
+        L"[RSDP]: Signature Valid = %s\n\n", 
         Rsdp->Signature == EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER_SIGNATURE
             ? L"YES"
             : L"NO");
 
     Print(
-        L"===> [XSDT]: OemId = %c%c%c%c%c%c\n",
+        L"[XSDT]: OemId = %c%c%c%c%c%c\n",
         Xsdt->OemId[0],
         Xsdt->OemId[1],
         Xsdt->OemId[2],
@@ -66,13 +67,13 @@ KernEfiMain (
         Xsdt->OemId[5]);
 
     Print(
-        L"===> [XSDT]: Signature Valid = %s\n\n",
+        L"[XSDT]: Signature Valid = %s\n\n",
         Xsdt->Signature == EFI_ACPI_2_0_EXTENDED_SYSTEM_DESCRIPTION_TABLE_SIGNATURE
             ? L"YES"
             : L"NO");
 
     Print(
-        L"===> [DSDT]: OemId = %c%c%c%c%c%c\n",
+        L"[DSDT]: OemId = %c%c%c%c%c%c\n",
         Dsdt->Sdt.OemId[0],
         Dsdt->Sdt.OemId[1],
         Dsdt->Sdt.OemId[2],
@@ -82,21 +83,30 @@ KernEfiMain (
 
 
     Print(
-        L"===> [DSDT]: Dsdt Bytecode Count = %llu\n\n",
+        L"[DSDT]: Dsdt Bytecode Count = %llu\n\n",
         Dsdt->BytecodeCount);
 
-    RunKernelPE(
-        ImageHandle,
-        SystemTable,
-        Dsdt,
-        NULL
-    );
+    EFI_GRAPHICS_OUTPUT_PROTOCOL            *GOP;
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION    *Info;
+    UINTN                                   SizeOfInfo = 0;
 
-    EFI_GRAPHICS_OUTPUT_PROTOCOL            *GOP  = NULL;
-    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION    *Info = NULL;
-    UINTN                                   SizeOfInfo;
+    Status = SystemTable->BootServices->AllocatePool (
+        EfiLoaderCode,
+        sizeof(EFI_GRAPHICS_OUTPUT_PROTOCOL),
+        (VOID **)&GOP);
+    HANDLE_STATUS(
+        Status,
+        L"FAILED TO ALLOCATE MEMORY POOL FOR GOP PTR\r\n");
 
-    Status = KernLocateGop(SystemTable, GOP);
+    Status = SystemTable->BootServices->AllocatePool (
+        EfiLoaderCode,
+        sizeof(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION),
+        (VOID **)&Info);
+    HANDLE_STATUS(
+        Status, 
+        L"FAILED TO ALLOCATE MEMORY POOL FOR Info PTR\r\n");
+
+    Status = KernLocateGop(SystemTable, &GOP);
 
     if (Status == EFI_NOT_FOUND)
     {
@@ -105,7 +115,18 @@ KernEfiMain (
         return Status;
     }
 
-    Status = KernGetVideoMode(GOP, Info, &SizeOfInfo);
+    if (GOP == NULL)
+    {
+        Print(L"[GOP]: GOP PTR is NULL. Halting...\r\n");
+
+        return EFI_INVALID_PARAMETER;
+    }
+
+    Print(L"[GOP]: Successfully located the GOP instance\r\n");
+
+    Print(L"[GOP]: GOP MODE = %lu\r\n", GOP->Mode == NULL ? 0 : GOP->Mode->Mode);
+
+    Status = KernGetVideoMode(&GOP, &Info, &SizeOfInfo);
 
     if (Status == EFI_NOT_FOUND)
     {
@@ -114,37 +135,51 @@ KernEfiMain (
         return Status;
     }
 
+    Print(L"[GOP]: Successfully found GOP mode info\r\n");
+    UINT32 SelectedMode = 0;
+
     if (KernModeAvailable(
-        KERN_GRAPHICS_VIDEO_MODE,
         &SizeOfInfo,
-        GOP,
-        Info) == FALSE)
+        &GOP,
+        &Info,
+        &SelectedMode) == FALSE)
     {
         Print(L"Requested video mode not available!\n");
 
         return Status;
     }
 
-    GOP->SetMode(GOP, KERN_GRAPHICS_VIDEO_MODE);
+    Print(L"[GOP]: Video mode is available!\r\n");
 
-    KERN_FRAMEBUFFER Framebuffer = {
-        .FramebufferBase = GOP->Mode->FrameBufferBase,
-        .FramebufferSize = GOP->Mode->FrameBufferSize,
-        .VerticalRes     = GOP->Mode->Info->VerticalResolution,
-        .HorizontalRes   = GOP->Mode->Info->HorizontalResolution,
-        .PPS             = GOP->Mode->Info->PixelsPerScanLine,
-        .Pitch           = 8 * GOP->Mode->Info->PixelsPerScanLine,
-        .Width           = 8,
-        .PixelBitmask    = GOP->Mode->Info->PixelInformation
-    };
+    KERN_FRAMEBUFFER *Framebuffer;
+
+    Status = SystemTable->BootServices->AllocatePool (
+        EfiLoaderCode,
+        sizeof(KERN_FRAMEBUFFER),
+        (VOID **)&Framebuffer);
+    HANDLE_STATUS(
+        Status,
+        L"FAILED TO ALLOCATE MEMORY POOL FOR Framebuffer PTR\r\n");
+    
+    Framebuffer->FramebufferBase = GOP->Mode->FrameBufferBase;
+    Framebuffer->FramebufferSize = GOP->Mode->FrameBufferSize;
+    Framebuffer->VerticalRes     = GOP->Mode->Info->VerticalResolution;
+    Framebuffer->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
+    Framebuffer->PPS             = GOP->Mode->Info->PixelsPerScanLine;
+    Framebuffer->Width           = 4;
+    Framebuffer->Pitch           = Framebuffer->Width * Framebuffer->PPS;
+    Framebuffer->PixelBitmask    = GOP->Mode->Info->PixelInformation;
+    Framebuffer->CurrentMode     = SelectedMode;
+
+    Print(L"[GOP]: Successfully obtained framebuffer.\r\n");
 
     RunKernelPE(
         ImageHandle,
         SystemTable,
-        Dsdt,
-        &Framebuffer
+        &Dsdt,
+        &Framebuffer,
+        &GOP
     );
 
-
-    return EFI_SUCCESS;
+    return EFI_NOT_FOUND;
 }
