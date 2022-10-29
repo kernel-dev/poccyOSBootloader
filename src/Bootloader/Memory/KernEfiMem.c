@@ -20,26 +20,38 @@ EfiKernGetMemoryMap (
     EFI_MEMORY_DESCRIPTOR   *MemoryMap;
     EFI_MEMORY_DESCRIPTOR   *MemoryMapEnd = NULL;
 
-    Status = SystemTable->BootServices->GetMemoryMap(
+    Status = SystemTable->BootServices->GetMemoryMap (
         &MemoryMapSize, 
         MemoryMap, 
         &MMapKey, 
         &DescriptorSize, 
         &DescriptorVersion);
  
+    //
+    //  Current buffer size is too small to 
+    //  fit the memory map buffer.
+    //
+    //  This behavior is expected.
+    //
+    //  To solve, simply allocate enough
+    //  memory for the buffer.
+    //
+    //  A new memory pool of: Size + (DescriptorSize * 2)
+    //  should suffice.
+    //
     if (Status == EFI_BUFFER_TOO_SMALL)
     {
-        MemoryMap = (EFI_MEMORY_DESCRIPTOR *)AllocatePool(MemoryMapSize + (DescriptorSize * 2));
-        UINTN NewMemoryMapSize = MemoryMapSize + (2 * DescriptorSize);
+        MemoryMap = (EFI_MEMORY_DESCRIPTOR *) AllocatePool (MemoryMapSize + (DescriptorSize * 2));
+        UINTN NewMemoryMapSize = MemoryMapSize + (DescriptorSize * 2);
 
-        Status = SystemTable->BootServices->GetMemoryMap(
+        Status = SystemTable->BootServices->GetMemoryMap (
             &NewMemoryMapSize,
             MemoryMap,
             &MMapKey,
             &DescriptorSize,
             &DescriptorVersion);
 
-        if (EFI_ERROR(Status))
+        if (EFI_ERROR (Status))
         {
             FreePool(MemoryMap);
 
@@ -47,12 +59,7 @@ EfiKernGetMemoryMap (
         }
     }
 
-    else if (Status == EFI_INVALID_PARAMETER)
-    {
-        Print(L"===> [EFIMEM]: Invalid parameter!\n");
-    }
-
-    else if (EFI_ERROR(Status))
+    else if (EFI_ERROR (Status))
     {
         Print(
             L"===> [EFIMEM]: Obtaining memory map for loader failed!!\nSTATUS = %llu\n", 
@@ -61,8 +68,12 @@ EfiKernGetMemoryMap (
         return (EFI_KERN_MEMORY_MAP){ .Empty = TRUE };
     }
 
+    //
+    // Memory map not found;
+    // something went very wrong.
+    //
     if (MemoryMap == NULL)
-        EfiMemMap = (EFI_KERN_MEMORY_MAP){ .Empty = TRUE }; // Memory map not found; the function should never reach this condition.
+        EfiMemMap = (EFI_KERN_MEMORY_MAP){ .Empty = TRUE };
 
     else
         EfiMemMap = (EFI_KERN_MEMORY_MAP){
