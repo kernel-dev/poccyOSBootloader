@@ -1,5 +1,5 @@
-#include "KernelLoader.h"
-#include "Bootloader.h"
+#include "../Common/Boot/KernelLoader.h"
+#include "../Common/Boot/Bootloader.h"
 
 #include "../Common/Memory/KernEfiMem.h"
 
@@ -36,6 +36,10 @@ RunKernelPE (
     
     Print(L"BEGINNING SEARCH FOR KERNEL PE...\r\n");
 
+    //
+    //  Allocate pool memory where we can place
+    //  the Loaded Image buffer into.
+    //
     Status = SystemTable->BootServices->AllocatePool (
                 EfiBootServicesData,
                 sizeof(EFI_LOADED_IMAGE_PROTOCOL),
@@ -44,6 +48,9 @@ RunKernelPE (
         Status,
         L"FAILED TO ALLOCATE MEMORY FOR LOADED IMAGE\r\n");
 
+    //
+    //  Obtain the Loaded Image.
+    //
     Status = SystemTable->BootServices->OpenProtocol (
                 ImageHandle,
                 &LoadedImageProtocol,
@@ -58,6 +65,9 @@ RunKernelPE (
     EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *FileSystem;
     EFI_GUID                        FileSystemProtocol = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
 
+    //
+    //  Allocate pool memory for the FS handle.
+    //
     Status = SystemTable->BootServices->AllocatePool (
                 EfiBootServicesData,
                 sizeof(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL),
@@ -66,6 +76,9 @@ RunKernelPE (
         Status,
         L"FAILED TO ALLOCATE MEMORY FOR FILE SYSTEM\r\n");
 
+    //
+    //  Obtain the FileSystem handle.
+    //
     Status = SystemTable->BootServices->OpenProtocol (
                 LoadedImage->DeviceHandle,
                 &FileSystemProtocol,
@@ -78,6 +91,7 @@ RunKernelPE (
         L"FAILED TO OPEN PROTOCOL BY HANDLE\r\n");
 
     EFI_FILE    *CurrentDriveRoot;
+
     Status = SystemTable->BootServices->AllocatePool (
                 EfiLoaderCode,
                 sizeof(EFI_FILE_PROTOCOL),
@@ -86,12 +100,20 @@ RunKernelPE (
         Status,
         L"FAILED TO ALLOCATE MEMORY FOR CURRENT DRIVE ROOT\r\n");
 
+    //
+    //  Open the current drive root using the FS handle.
+    //
     Status = FileSystem->OpenVolume (FileSystem, &CurrentDriveRoot);
     HANDLE_STATUS(
         Status,
         L"FAILED TO OPEN CURRENT DRIVE\r\n");
 
     EFI_FILE *KernelFile;
+
+    //
+    //  Allocate pool memory to load the kernel
+    //  file's buffer into.
+    //
     Status = SystemTable->BootServices->AllocatePool (
                 EfiLoaderCode,
                 sizeof(EFI_FILE_PROTOCOL),
@@ -100,6 +122,10 @@ RunKernelPE (
         Status, 
         L"FAILED TO ALLOCATE MEMORY FOR KERNEL FILE\r\n");
 
+    //
+    //  Read the kernel file's contents
+    //  into the previously allocated buffer.
+    //
     Status = CurrentDriveRoot->Open (
         CurrentDriveRoot,
         &KernelFile,
@@ -112,12 +138,19 @@ RunKernelPE (
 
     EFI_PHYSICAL_ADDRESS    HeaderMemory = 0;
     UINTN                   FileInfoSize;
+
+    //
+    //  Get the size of the FileInfo buffer.
+    //
     KernelFile->GetInfo (
         KernelFile, 
         &gEfiFileInfoGuid, 
         &FileInfoSize,
         NULL);
 
+    //
+    //  FileInfo not available?
+    //
     if (FileInfoSize == 0)
     {
         return EFI_NOT_FOUND;
@@ -125,6 +158,10 @@ RunKernelPE (
 
 
     EFI_FILE_INFO *FileInfo;
+
+    //
+    //  Allocate pool memory for the FileInfo struct.
+    //
     Status = SystemTable->BootServices->AllocatePool (
                 EfiLoaderCode,
                 FileInfoSize,
@@ -133,6 +170,9 @@ RunKernelPE (
         Status,
         L"FAILED TO ALLOCATE MEMORY FOR FILE INFO PTR\r\n");
 
+    //
+    //  Obtain the pointer to the FileInfo struct.
+    //
     Status = KernelFile->GetInfo (
                 KernelFile, 
                 &gEfiFileInfoGuid, 
@@ -160,6 +200,10 @@ RunKernelPE (
 
     VOID *Kernel;
 
+    //
+    //  Allocate pool memory for actually
+    //  reading the data of the kernel file.
+    //
     Status = SystemTable->BootServices->AllocatePool (
                 EfiLoaderCode, 
                 FileInfo->FileSize, 
@@ -168,6 +212,11 @@ RunKernelPE (
         Status,
         L"FAILED TO ALLOCATE MEMORY POOL FOR FILE BUFFER\r\n");
 
+    //
+    //  Place the contents of the file into
+    //  the "Kernel" buffer so that we don't have to
+    //  call `KernelFile->Read()' constantly.
+    //
     Status = KernelFile->Read (
                 KernelFile,
                 &(FileInfo->FileSize),
@@ -176,6 +225,9 @@ RunKernelPE (
         Status,
         L"FAILED TO READ CONTENTS OF FILE INTO BUFFER\r\n");
 
+    //
+    //  Failed to read the file buffer...
+    //
     if (Kernel == NULL)
     {
         Print(L"FAILED TO READ KERNEL... HALTING BOOT.\r\n");
@@ -183,9 +235,19 @@ RunKernelPE (
         return EFI_NOT_FOUND;
     }
 
+    //
+    //  Special thank you to Marvin Häuser (https://github.com/mhaeuser)
+    //  for providing me with a rich library (PeCoffLib2)
+    //  which abstracts and minimizes my pain
+    //  for PE32+ image relocations.
+    //
+
     PE_COFF_LOADER_IMAGE_CONTEXT *Context = NULL;
     EFI_PHYSICAL_ADDRESS         LoadImg = 0;
 
+    //
+    //  Initialize image context.
+    //
     Status = PeCoffInitializeContext (
                 Context,
                 Kernel, 
@@ -197,10 +259,17 @@ RunKernelPE (
     Print(L"SUCCESSFULLY INITIALIZED CONTEXT\r\n");
 
     UINT32 FinalSize;
-    HANDLE_STATUS(
-        UefiImageLoaderGetDestinationSize (
+
+    //
+    //  Calculate the size, in bytes, required
+    //  for the destination Image memory space
+    //  to load into.
+    //
+    Status = UefiImageLoaderGetDestinationSize (
             Context, 
-            &FinalSize),
+            &FinalSize);
+    HANDLE_STATUS(
+        Status,
         L"FAILED TO OBTAIN DESTINATION SIZE\r\n");
 
     if (FinalSize < 1)
@@ -212,6 +281,10 @@ RunKernelPE (
 
     Print(L"FinalSize = %llu\r\n", FinalSize);
 
+    //
+    //  Allocate a sufficient amount of 4KiB
+    //  pages for the loaded image.
+    //
     Status = SystemTable->BootServices->AllocatePages (
                 AllocateAnyPages, 
                 EfiLoaderCode,
@@ -223,6 +296,9 @@ RunKernelPE (
     
     Print(L"SUCCESSFULLY ALLOCATED MEMORY FOR IMAGE\r\n");
 
+    //
+    //  Actually load the image from the context.
+    //
     Status = PeCoffLoadImage (
                 Context,
                 (VOID *)LoadImg, 
@@ -236,8 +312,15 @@ RunKernelPE (
     Print(L"Size of Image = %llu\r\n", Context->SizeOfImage);
     Print(L"Address of entry point = 0x%llx\r\n", Context->AddressOfEntryPoint);
 
+    //
+    //  Get the base address of the Image.
+    //
     UINTN BaseAddress = PeCoffLoaderGetImageAddress (Context);
 
+    //
+    //  Ensure that the Image relocs
+    //  are not stripped.
+    //
     if (PeCoffGetRelocsStripped (Context))
     {
         Print(L"PE/COFF IMAGE RELOCS ARE STRIPPED! HALTING\r\n");
@@ -245,6 +328,10 @@ RunKernelPE (
         return EFI_INVALID_PARAMETER;
     }
 
+    //
+    //  Relocate the image to its requested
+    //  destination address for boot-time usage.
+    //
     Status = PeCoffRelocateImage (
                 Context,
                 BaseAddress,
@@ -257,6 +344,9 @@ RunKernelPE (
 
     Print(L"BaseAddress = 0x%llx\r\n", (UINT64)BaseAddress);
 
+    //
+    //  Get the kernel's EP RVA.
+    //
     UINT32 EntryPoint = PeCoffGetAddressOfEntryPoint (Context);
 
     Print(L"Address of entry point ctx = 0x%llx\r\n", Context->AddressOfEntryPoint);
@@ -265,6 +355,11 @@ RunKernelPE (
     Print(L"ALLOCATING MEMORY POOL FOR ENTRY FUNCTION'S PARAMETERS...\r\n");
 
     LOADER_PARAMS *LoaderBlock;
+
+    //
+    //  Allocate pool memory for the parameters
+    //  to pass down to the kernel EP.
+    //
     Status = SystemTable->BootServices->AllocatePool (
                 EfiLoaderCode,
                 sizeof(LOADER_PARAMS),
@@ -277,44 +372,47 @@ RunKernelPE (
 
     Print(L"Hello, Kernel!\r\n");
 
-    GOP->SetMode(GOP, FB->CurrentMode);
+    //
+    //  Set the wanted video mode (1366x768).
+    //
+    GOP->SetMode (GOP, FB->CurrentMode);
 
     Print(L"[GOP]: Mode = %lu\r\n", FB->CurrentMode);
     Print(L"[GOP]: Successfully set mode.\r\n");
 
-    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info;
-    UINTN SizeOfInfo;
-
-    Status = SystemTable->BootServices->AllocatePool (
-        EfiLoaderCode, 
-        sizeof(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION),
-        (VOID **)&Info);
     HANDLE_STATUS(
         Status,
         L"FAILED TO ALLOCATE MEMORY POOL FOR GOP INFO\r\n");
 
-    Status = GOP->QueryMode (
-        GOP,
-        FB->CurrentMode, 
-        &SizeOfInfo, 
-        &Info);
-    HANDLE_STATUS(
-        Status,
-        L"FAILED TO QUERY CURRENT VIDEO MODE\r\n");
-
+    //
+    //  "Populate" the framebuffer struct pointer
+    //  with all the necessary information.
+    //
     FB->FramebufferBase = GOP->Mode->FrameBufferBase;
     FB->FramebufferSize = GOP->Mode->FrameBufferSize;
-    FB->HorizontalRes   = Info->HorizontalResolution;
-    FB->VerticalRes     = Info->VerticalResolution;
-    FB->PPS             = Info->PixelsPerScanLine;
-    FB->Width           = 4;
-    FB->Pitch           = FB->PPS * FB->Width;
-    FB->PixelBitmask    = Info->PixelInformation;
+    FB->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
+    FB->VerticalRes     = GOP->Mode->Info->VerticalResolution;
+    FB->PPS             = GOP->Mode->Info->PixelsPerScanLine;
+    FB->PixelBitmask    = GOP->Mode->Info->PixelInformation;
+
+    Print(L"[GOP]: FramebufferBase = 0x%llx\r\n", FB->FramebufferBase);
+    Print(L"[GOP]: FramebufferSize = %llu\r\n", FB->FramebufferSize);
+
+    Print(L"[GOP]: RedMask = %lu\r\n", FB->PixelBitmask.RedMask);
+    Print(L"[GOP]: GreenMask = %lu\r\n", FB->PixelBitmask.GreenMask);
+    Print(L"[GOP]: BlueMask = %lu\r\n", FB->PixelBitmask.BlueMask);
+    Print(L"[GOP]: ReservedMask = %lu\r\n", FB->PixelBitmask.ReservedMask);
 
     EFI_KERN_MEMORY_MAP     MemoryMap;
 
+    //
+    //  Attempt to obtain the system memory map.
+    //
     MemoryMap = EfiKernGetMemoryMap (ImageHandle, SystemTable);
 
+    //
+    //  This usually shouldn't happen...
+    //
     if (MemoryMap.Empty == TRUE)
     {
         Print(L"KERN MEMORY MAP IS EMPTY!\r\n");
@@ -322,24 +420,40 @@ RunKernelPE (
         return EFI_NOT_FOUND;
     }
 
+    //
+    //  Even weirder.
+    //
+    //  This should technically be
+    //  a redundant check that could
+    //  never possibly happen.
+    //
     else if (MemoryMap.MemoryMap == NULL)
     {
-        Print(L"EFI MEMORY MAP IS NULL!\r\n");
+        Print(L"EFI MEMORY MAP IS NULL BUT STRUCT MARKED AS NON-EMPTY!\r\n");
 
         return EFI_NOT_FOUND;
     }
 
+    //
+    //  Prepare the arguments to be passed down.
+    //
     LoaderBlock->MemoryMap          = &MemoryMap;
     LoaderBlock->Dsdt               = Dsdt;
     LoaderBlock->RT                 = SystemTable->RuntimeServices;
     LoaderBlock->Framebuffer        = FB;
 
+    //
+    //  Exit boot services.
+    //
     HANDLE_STATUS(
         SystemTable->BootServices->ExitBootServices(
             ImageHandle, 
             MemoryMap.MMapKey),
         L"FAILED TO EXIT BOOT SERVICES\r\n");
 
+    //
+    //  Locate the EP function and call it with the arguments.
+    //
     typedef void (__attribute__((ms_abi)) *EntryPointFunction) (LOADER_PARAMS *LP);
     EntryPointFunction EntryPointPlaceholder = (EntryPointFunction) (BaseAddress + EntryPoint);
     EntryPointPlaceholder (LoaderBlock);
