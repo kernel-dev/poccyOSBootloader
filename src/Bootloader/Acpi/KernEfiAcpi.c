@@ -138,8 +138,17 @@ EfiGetTables (
         //
         *Dsdt = (ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE *)(UINTN)(*Fadt)->Dsdt;
 
+        //
+        //  If we can't find the DSDT, we can't
+        //  really get the proper ACPI data about
+        //  the system and its hardware.
+        //
         if (*Dsdt == NULL)
+        {
             Print(L"===> [ACPI]: COULD NOT FIND DSDT!\n");
+
+            return EFI_NOT_FOUND;
+        }
 
         else
             Print(
@@ -155,6 +164,14 @@ EfiGetTables (
         //
         (*Dsdt)->BytecodeCount = (*Dsdt)->Sdt.Length - sizeof((*Dsdt)->Sdt);
     }
+
+    if (
+        *Dsdt == NULL ||
+        *Fadt == NULL ||
+        *Xsdt == NULL ||
+        *Rsdp == NULL
+    )
+        return EFI_NOT_FOUND;
 
     return EFI_SUCCESS;
 }
