@@ -1,4 +1,5 @@
 #include "../../Common/Acpi/KernEfiAcpi.h"
+#include "../../Common/Boot/Bootloader.h"
 
 #include <Uefi.h>
 
@@ -15,6 +16,10 @@ EfiLocateFadtFromXsdt (
     IN  EFI_ACPI_DESCRIPTION_HEADER  *Xsdt,
     OUT EFI_ACPI_COMMON_HEADER       **Fadt)
 {   
+    //
+    //  If the XSDT pointer is NULL,
+    //  how are we going to locate the FADT?
+    //
     if (Xsdt == NULL)
         return EFIERR(EFI_INVALID_PARAMETER);
 
@@ -35,11 +40,18 @@ EfiLocateFadtFromXsdt (
             (VOID *)(BasePtr + Index * TablePtrSize),
             TablePtrSize);
 
+        //
+        //  Hopefully we found the FADT...
+        //
         Table = (EFI_ACPI_COMMON_HEADER *)((UINTN)(EntryPtr));
 
         if (Table != NULL && Table->Signature == Signature)
         {
+            //
+            //  We found it!
+            //
             *Fadt = Table;
+
             return EFI_SUCCESS;
         }
     }
@@ -63,16 +75,29 @@ EfiGetTables (
 
     EFI_STATUS Status;
 
-    Status = EfiGetSystemConfigurationTable(&gEfiAcpi20TableGuid, (VOID **)Rsdp);
+    //
+    //  Attempt to locate the RSDP.
+    //
+    Status = EfiGetSystemConfigurationTable(
+        &gEfiAcpi20TableGuid, 
+        (VOID **)Rsdp);
 
-    if (EFI_ERROR(Status))
-        return Status;
+    HANDLE_STATUS(
+        Status,
+        L"FAILED TO LOCATE RSDP!\r\n");
 
+    //
+    //  The RSDP could not be found.
+    //
     if (*Rsdp == NULL)
         return EFI_NOT_FOUND;
 
     Print(L"\n===> [ACPI]: Found RSDP? = YES\n");
 
+    //
+    //  Thankfully, the RSDP has a pointer to
+    //  the base address of the XSDT.
+    //
     *Xsdt = (EFI_ACPI_DESCRIPTION_HEADER *)(*Rsdp)->XsdtAddress;
 
     Print(
@@ -81,6 +106,10 @@ EfiGetTables (
             ? L"NO"
             : L"YES");
 
+    //
+    //  Make sure the pointer is valid,
+    //  and that the signature is that of the XSDT.
+    //
     if (
         *Xsdt != NULL && 
         (*Xsdt)->Signature == EFI_ACPI_2_0_EXTENDED_SYSTEM_DESCRIPTION_TABLE_SIGNATURE
@@ -88,10 +117,11 @@ EfiGetTables (
     {
         Status = EfiLocateFadtFromXsdt(*Xsdt, (EFI_ACPI_COMMON_HEADER **)Fadt);
 
-        if (EFI_ERROR(Status))
-            Print(L"===> [ACPI]: UNKNOWN ERROR WHILE ATTEMPTING TO FIND FADT!\n");
+        HANDLE_STATUS(
+            Status,
+            L"===> [ACPI]: UNKNOWN ERROR WHILE ATTEMPTING TO FIND FADT!\r\n");
 
-        else if ((*Fadt)->Header.Signature == EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE_SIGNATURE)
+        if ((*Fadt)->Header.Signature == EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE_SIGNATURE)
             Print(L"===> [ACPI]: Found FADT? = YES\n");
 
         else if (*Fadt != NULL)
@@ -103,6 +133,9 @@ EfiGetTables (
 
     if (*Fadt != NULL)
     {
+        //
+        //  The FADT contains a pointer to the DSDT.
+        //
         *Dsdt = (ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE *)(UINTN)(*Fadt)->Dsdt;
 
         if (*Dsdt == NULL)
@@ -115,6 +148,11 @@ EfiGetTables (
                     ? L"YES"
                     : L"NO");
 
+        //
+        //  We can calculate the bytecode count
+        //  of the DSDT by taking the SDT's length property
+        //  and subtracting it by the size of its struct.
+        //
         (*Dsdt)->BytecodeCount = (*Dsdt)->Sdt.Length - sizeof((*Dsdt)->Sdt);
     }
 
