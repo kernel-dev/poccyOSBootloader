@@ -1,8 +1,8 @@
 #include "../Common/Acpi/KernEfiAcpi.h"
 #include "../Common/Memory/KernEfiMem.h"
 #include "../Common/Graphics/KernGop.h"
-#include "KernelLoader.h"
-#include "Bootloader.h"
+#include "../Common/Boot/KernelLoader.h"
+#include "../Common/Boot/Bootloader.h"
 
 #include <Uefi.h>
 
@@ -26,7 +26,16 @@ KernEfiMain (
     EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE    *Fadt;
     ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt;
 
-    Status = EfiGetTables(&Rsdp, &Rsdt, &Xsdt, &Fadt, &Dsdt);
+    //
+    //  Obtain all the necessary ACPI tables
+    //  through the RSDP (but first locate the RSDP.)
+    //
+    Status = EfiGetTables (
+        &Rsdp, 
+        &Rsdt, 
+        &Xsdt, 
+        &Fadt, 
+        &Dsdt);
 
     if (Rsdp == NULL)
     {
@@ -90,23 +99,12 @@ KernEfiMain (
     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION    *Info;
     UINTN                                   SizeOfInfo = 0;
 
-    Status = SystemTable->BootServices->AllocatePool (
-        EfiLoaderCode,
-        sizeof(EFI_GRAPHICS_OUTPUT_PROTOCOL),
-        (VOID **)&GOP);
-    HANDLE_STATUS(
-        Status,
-        L"FAILED TO ALLOCATE MEMORY POOL FOR GOP PTR\r\n");
-
-    Status = SystemTable->BootServices->AllocatePool (
-        EfiLoaderCode,
-        sizeof(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION),
-        (VOID **)&Info);
-    HANDLE_STATUS(
-        Status, 
-        L"FAILED TO ALLOCATE MEMORY POOL FOR Info PTR\r\n");
-
-    Status = KernLocateGop(SystemTable, &GOP);
+    //
+    //  Locate the GOP handle.
+    //
+    Status = KernLocateGop (
+        SystemTable, 
+        &GOP);
 
     if (Status == EFI_NOT_FOUND)
     {
@@ -124,24 +122,9 @@ KernEfiMain (
 
     Print(L"[GOP]: Successfully located the GOP instance\r\n");
 
-    Print(L"[GOP]: GOP MODE = %lu\r\n", GOP->Mode == NULL ? 0 : GOP->Mode->Mode);
-
-    Status = KernGetVideoMode (
-        &GOP, 
-        &Info, 
-        &SizeOfInfo);
-
-    if (Status == EFI_NOT_FOUND)
-    {
-        Print(L"Failed to find GOP mode info!\n");
-
-        return Status;
-    }
-
-    Print(L"[GOP]: Successfully found GOP mode info\r\n");
     UINT32 SelectedMode = 0;
 
-    if (KernModeAvailable(
+    if (KernModeAvailable (
         &SizeOfInfo,
         &GOP,
         &Info,
@@ -154,8 +137,32 @@ KernEfiMain (
 
     Print(L"[GOP]: Video mode is available!\r\n");
 
+    Print(L"[GOPInfo]: PixelBltOnly = %d\r\n", GOP->Mode->Info->PixelFormat == PixelBltOnly);
+    Print(L"[GOPInfo]: PixelRGBA = %d\r\n", GOP->Mode->Info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor);
+    Print(L"[GOPInfo]: PixelBGRA = %d\r\n", GOP->Mode->Info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor);
+    Print(L"[GOPInfo]: PixelBitMask = %d\r\n", GOP->Mode->Info->PixelFormat == PixelBitMask);
+    Print(L"[GOPInfo]: PixelFormatMax = %d\r\n", GOP->Mode->Info->PixelFormat == PixelFormatMax);
+
+    //
+    //  Ensure we're dealing with a valid 32-bit
+    //  color pixel format.
+    //
+    if (
+        GOP->Mode->Info->PixelFormat != PixelRedGreenBlueReserved8BitPerColor &&
+        GOP->Mode->Info->PixelFormat != PixelBlueGreenRedReserved8BitPerColor
+    ) {
+        Print(L"[GOPPixels]: Unsupported pixel format! Halting boot...\r\n");
+
+        return EFI_INVALID_PARAMETER;
+    }
+
     KERN_FRAMEBUFFER *Framebuffer;
 
+    //
+    //  Allocate pool memory for the
+    //  internal representation of the framebuffer
+    //  obtained via the GOP handle.
+    //
     Status = SystemTable->BootServices->AllocatePool (
         EfiLoaderCode,
         sizeof(KERN_FRAMEBUFFER),
@@ -165,14 +172,23 @@ KernEfiMain (
         L"FAILED TO ALLOCATE MEMORY POOL FOR Framebuffer PTR\r\n");
 
     //
-    //  Only need the wanted video mode (1366x768)
-    //  value that is supported. Setting the mode itself
-    //  is handled within KernelLoader.c
+    //  Only need the wanted video mode (1366x768),
+    //  that is supported, BPP, and Pitch value to be set.
     //
-    Framebuffer->CurrentMode     = SelectedMode;
+    //  Setting the mode itself is handled 
+    //  within KernelLoader.c
+    //
+    Framebuffer->CurrentMode = SelectedMode;
+    Framebuffer->BPP = 4; // 32bits / 8 = 4 bytes
+    Framebuffer->Pitch = Framebuffer->PPS * Framebuffer->BPP;
 
     Print(L"[GOP]: Successfully obtained framebuffer.\r\n");
 
+    //
+    //  Go over the PE32+ image and
+    //  attempt to successfully jump to
+    //  the kernel's EP after everything has been done.
+    //
     RunKernelPE(
         ImageHandle,
         SystemTable,
