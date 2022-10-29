@@ -21,7 +21,6 @@
 #include <Guid/FileInfo.h>
 
 
-// FIXME: Improper relocations yield an invalid entry point.
 EFI_STATUS
 RunKernelPE (
     IN EFI_HANDLE                                   ImageHandle,
