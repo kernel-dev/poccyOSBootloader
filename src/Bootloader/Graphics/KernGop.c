@@ -13,12 +13,15 @@ KernLocateGop (
     EFI_STATUS  Status;
     EFI_GUID    GopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 
-    Status = SystemTable->BootServices->LocateProtocol(
+    //
+    //  Locate the GOP using the GOP's default GUID.
+    //
+    Status = SystemTable->BootServices->LocateProtocol (
         &GopGuid,
         NULL, 
         (VOID **)GOP);
 
-    if (EFI_ERROR(Status))
+    if (EFI_ERROR (Status))
         return EFI_NOT_FOUND;
 
     return EFI_SUCCESS;
@@ -34,19 +37,31 @@ KernGetVideoMode (
 
     Print(L"[GOPMode]: Querying current mode...\r\n");
 
-    Status = (*GOP)->QueryMode(
+    //
+    //  Query for information about the default
+    //  (or previously set) video mode.
+    //
+    Status = (*GOP)->QueryMode (
         *GOP,
         (*GOP)->Mode == NULL ? 0 : (*GOP)->Mode->Mode,
         SizeOfInfo,
         Info);
 
+    //
+    //  GOP not initialized yet, set video mode 
+    //  to the default value.
+    //
     if (Status == EFI_NOT_STARTED)
     {
         Print(L"[GOPMode]: GOP was not initialized; setting to default...");
 
-        Status = (*GOP)->SetMode(*GOP, 0);
+        Status = (*GOP)->SetMode (*GOP, 0);
 
-        if (EFI_ERROR(Status))
+        //
+        //  Maybe the default mode is somehow
+        //  unsupported?
+        //
+        if (EFI_ERROR (Status))
         {
             Print(L"[GOPMode]: Failed to set GOP mode to default! | Status = %llu\r\n", Status);
 
@@ -54,7 +69,7 @@ KernGetVideoMode (
         }
     }
 
-    else if (EFI_ERROR(Status))
+    else if (EFI_ERROR (Status))
     {
         Print(L"[GOPMode]: Unknown error. | Status = %llu\r\n", Status);
 
@@ -73,35 +88,55 @@ KernModeAvailable (
     IN  OUT EFI_GRAPHICS_OUTPUT_MODE_INFORMATION **Info,
     OUT UINT32                                   *Mode)
 {
+    //
+    //  The "top most" index of video modes.
+    //
     UINT32 NumberOfModes = (*GOP)->Mode->MaxMode;
+
+    //
+    //  The current specified video mode.
+    //
     UINT32 NativeMode    = (*GOP)->Mode->Mode;
-    UINT32 CurrentMode   = 0;
+
+    //
+    //  The wanted mode (in kernelOS's case, one that supports 1366x768)
+    //
+    UINT32 WantedMode   = 0;
 
     Print(L"[GOPMode]: NumberOfModes = %llu\r\n", NumberOfModes);
     Print(L"[GOPMode]: NativeMode = %llu\r\n", NativeMode);
 
     for (UINT32 Index = 0; Index < NumberOfModes; Index++)
     {
-        (*GOP)->QueryMode((*GOP), Index, SizeOfInfo, Info);
+        (*GOP)->QueryMode (
+            (*GOP), 
+            Index, 
+            SizeOfInfo, 
+            Info);
 
         if (
             (*Info)->HorizontalResolution == 1366 &&
             (*Info)->VerticalResolution == 768
         ) {
-            Print(L"INDEX = %lu\r\n", Index);
-
-            CurrentMode = Index;
+            WantedMode = Index;
 
             break;
         }
     }
 
-    if (CurrentMode != 0)
+    //
+    //  If the wanted mode isn't the default
+    //  mode, we know we can use it.
+    //
+    if (WantedMode != 0)
     {
-        *Mode = CurrentMode;
+        *Mode = WantedMode;
 
         return TRUE;
     }
 
+    //
+    //  Something went wrong.
+    //
     return FALSE;
 }
