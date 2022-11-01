@@ -173,14 +173,12 @@ KernEfiMain (
 
     //
     //  Only need the wanted video mode (1366x768),
-    //  that is supported, BPP, and Pitch value to be set.
+    //  that is supported value to be set.
     //
     //  Setting the mode itself is handled 
     //  within KernelLoader.c
     //
     Framebuffer->CurrentMode = SelectedMode;
-    Framebuffer->BPP = 4; // 32bits / 8 = 4 bytes
-    Framebuffer->Pitch = Framebuffer->PPS * Framebuffer->BPP;
 
     Print(L"[GOP]: Successfully obtained framebuffer.\r\n");
 
