@@ -204,9 +204,9 @@ RunKernelPE (
     //  reading the data of the kernel file.
     //
     Status = SystemTable->BootServices->AllocatePool (
-                EfiLoaderCode, 
+                EfiLoaderCode,
                 FileInfo->FileSize, 
-                &Kernel);
+                (VOID **)&Kernel);
     HANDLE_STATUS(
         Status,
         L"FAILED TO ALLOCATE MEMORY POOL FOR FILE BUFFER\r\n");
@@ -219,7 +219,7 @@ RunKernelPE (
     Status = KernelFile->Read (
                 KernelFile,
                 &(FileInfo->FileSize),
-                (VOID *)Kernel);
+                Kernel);
     HANDLE_STATUS(
         Status,
         L"FAILED TO READ CONTENTS OF FILE INTO BUFFER\r\n");
@@ -241,31 +241,29 @@ RunKernelPE (
     //  for PE32+ image relocations.
     //
 
-    PE_COFF_LOADER_IMAGE_CONTEXT *Context = NULL;
+    PE_COFF_LOADER_IMAGE_CONTEXT Context;
     EFI_PHYSICAL_ADDRESS         LoadImg = 0;
 
     //
     //  Initialize image context.
     //
     Status = PeCoffInitializeContext (
-                Context,
+                &Context,
                 Kernel, 
                 FileInfo->FileSize);
     HANDLE_STATUS(
         Status,
         L"FAILED TO INITIALIZE CONTEXT\r\n");
 
-    Print(L"SUCCESSFULLY INITIALIZED CONTEXT\r\n");
-
     UINT32 FinalSize;
 
     //
-    //  Calculate the size, in bytes, required
+    //  Get the size, in bytes, required
     //  for the destination Image memory space
     //  to load into.
     //
     Status = UefiImageLoaderGetDestinationSize (
-            Context, 
+            &Context, 
             &FinalSize);
     HANDLE_STATUS(
         Status,
@@ -299,7 +297,7 @@ RunKernelPE (
     //  Actually load the image from the context.
     //
     Status = PeCoffLoadImage (
-                Context,
+                &Context,
                 (VOID *)LoadImg, 
                 FinalSize);
     HANDLE_STATUS(
@@ -308,19 +306,19 @@ RunKernelPE (
 
     Print(L"SUCCESSFULLY LOADED IMAGE FROM CONTEXT\r\n");
 
-    Print(L"Size of Image = %llu\r\n", Context->SizeOfImage);
-    Print(L"Address of entry point = 0x%llx\r\n", Context->AddressOfEntryPoint);
+    Print(L"Size of Image = %llu\r\n", Context.SizeOfImage);
+    Print(L"Address of entry point = 0x%llx\r\n", Context.AddressOfEntryPoint);
 
     //
     //  Get the base address of the Image.
     //
-    UINTN BaseAddress = PeCoffLoaderGetImageAddress (Context);
+    UINTN BaseAddress = PeCoffLoaderGetImageAddress (&Context);
 
     //
     //  Ensure that the Image relocs
     //  are not stripped.
     //
-    if (PeCoffGetRelocsStripped (Context))
+    if (PeCoffGetRelocsStripped (&Context))
     {
         Print(L"PE/COFF IMAGE RELOCS ARE STRIPPED! HALTING\r\n");
 
@@ -332,7 +330,7 @@ RunKernelPE (
     //  destination address for boot-time usage.
     //
     Status = PeCoffRelocateImage (
-                Context,
+                &Context,
                 BaseAddress,
                 NULL,
                 0);
@@ -346,30 +344,10 @@ RunKernelPE (
     //
     //  Get the kernel's EP RVA.
     //
-    UINT32 EntryPoint = PeCoffGetAddressOfEntryPoint (Context);
+    UINT32 EntryPoint = PeCoffGetAddressOfEntryPoint (&Context);
 
-    Print(L"Address of entry point ctx = 0x%llx\r\n", Context->AddressOfEntryPoint);
+    Print(L"Address of entry point ctx = 0x%llx\r\n", Context.AddressOfEntryPoint);
     Print(L"Address of entry point = 0x%llx\r\n", EntryPoint);
-
-    Print(L"ALLOCATING MEMORY POOL FOR ENTRY FUNCTION'S PARAMETERS...\r\n");
-
-    LOADER_PARAMS *LoaderBlock;
-
-    //
-    //  Allocate pool memory for the parameters
-    //  to pass down to the kernel EP.
-    //
-    Status = SystemTable->BootServices->AllocatePool (
-                EfiLoaderCode,
-                sizeof(LOADER_PARAMS),
-                (VOID **)&LoaderBlock);
-    HANDLE_STATUS(
-        Status,
-        L"FAILED TO ALLOCATE MEMORY POOL FOR PARAMETERS\r\n");
-
-    Print(L"ALLOCATED MEMORY POOL!\r\n");
-
-    Print(L"Hello, Kernel!\r\n");
 
     //
     //  Set the wanted video mode (1366x768).
@@ -379,10 +357,6 @@ RunKernelPE (
     Print(L"[GOP]: Mode = %lu\r\n", FB->CurrentMode);
     Print(L"[GOP]: Successfully set mode.\r\n");
 
-    HANDLE_STATUS(
-        Status,
-        L"FAILED TO ALLOCATE MEMORY POOL FOR GOP INFO\r\n");
-
     //
     //  "Populate" the framebuffer struct pointer
     //  with all the necessary information.
@@ -391,16 +365,17 @@ RunKernelPE (
     FB->FramebufferSize = GOP->Mode->FrameBufferSize;
     FB->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
     FB->VerticalRes     = GOP->Mode->Info->VerticalResolution;
+    FB->BPP             = 4; // 32bits / 8 = 4 bytes
     FB->PPS             = GOP->Mode->Info->PixelsPerScanLine;
+    FB->Pitch           = FB->PPS * FB->BPP;
     FB->PixelBitmask    = GOP->Mode->Info->PixelInformation;
 
-    Print(L"[GOP]: FramebufferBase = 0x%llx\r\n", FB->FramebufferBase);
-    Print(L"[GOP]: FramebufferSize = %llu\r\n", FB->FramebufferSize);
+    Print(L"[GOP]: FramebufferBase = 0x%llx\r\n", GOP->Mode->FrameBufferBase);
+    Print(L"[GOP]: FramebufferEnd = 0x%llx\r\n", GOP->Mode->FrameBufferBase + GOP->Mode->FrameBufferSize);
 
-    Print(L"[GOP]: RedMask = %lu\r\n", FB->PixelBitmask.RedMask);
-    Print(L"[GOP]: GreenMask = %lu\r\n", FB->PixelBitmask.GreenMask);
-    Print(L"[GOP]: BlueMask = %lu\r\n", FB->PixelBitmask.BlueMask);
-    Print(L"[GOP]: ReservedMask = %lu\r\n", FB->PixelBitmask.ReservedMask);
+    Print(L"[GOP]: Horizontal resolution = %lu\r\n", GOP->Mode->Info->HorizontalResolution);
+    Print(L"[GOP]: Vertical resolution = %lu\r\n", GOP->Mode->Info->VerticalResolution);
+    Print(L"[GOP]: PixelsPerScanLine = %lu\r\n", GOP->Mode->Info->PixelsPerScanLine);
 
     EFI_KERN_MEMORY_MAP     MemoryMap;
 
@@ -434,14 +409,6 @@ RunKernelPE (
     }
 
     //
-    //  Prepare the arguments to be passed down.
-    //
-    LoaderBlock->MemoryMap          = &MemoryMap;
-    LoaderBlock->Dsdt               = Dsdt;
-    LoaderBlock->RT                 = SystemTable->RuntimeServices;
-    LoaderBlock->Framebuffer        = FB;
-
-    //
     //  Exit boot services.
     //
     HANDLE_STATUS(
@@ -453,9 +420,19 @@ RunKernelPE (
     //
     //  Locate the EP function and call it with the arguments.
     //
-    typedef void (__attribute__((ms_abi)) *EntryPointFunction) (LOADER_PARAMS *LP);
+    typedef void (__attribute__((ms_abi)) *EntryPointFunction) (
+        EFI_RUNTIME_SERVICES                         *RT,           /// Pointer to the runtime services.
+        EFI_KERN_MEMORY_MAP                          *MemoryMap,    /// Pointer to the EFI_KERN_MEMORY_MAP.
+        ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,        /// Pointer to the DSDT pointer.
+        KERN_FRAMEBUFFER                             *Framebuffer  /// Pointer to the KERN_FRAMEBUFFER.
+    );
+
     EntryPointFunction EntryPointPlaceholder = (EntryPointFunction) (BaseAddress + EntryPoint);
-    EntryPointPlaceholder (LoaderBlock);
+    EntryPointPlaceholder (
+        SystemTable->RuntimeServices,
+        &MemoryMap,
+        Dsdt,
+        FB);
 
     // Should never reach here...
     return Status;
