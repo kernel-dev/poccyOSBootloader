@@ -12,4 +12,4 @@ It is solely used to load my own OS, and has not been tested to load any other O
 
 ## Credits
 
-- [Mhaeuser](https://github.com/mhaeuser) — for providing this project with an amazing library for PE/COFF images (PeCoffLib2).
+- [Mhaeuser](https://github.com/mhaeuser) — for providing this project with a rich, and high level abstraction for parsing and handling PE/COFF images (PeCoffLib2).
