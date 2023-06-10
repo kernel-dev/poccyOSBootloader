@@ -24,6 +24,7 @@
   DebugLib
   PcdLib
   UefiImageLib
+  BaseOverflowLib
  
 [Guids]
   gEfiFileInfoGuid
