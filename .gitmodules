@@ -1,0 +1,3 @@
+[submodule "audk"]
+	path = audk
+	url = https://github.com/acidanthera/audk
