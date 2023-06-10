@@ -17,8 +17,7 @@ EfiKernGetMemoryMap (
     UINTN                   MMapKey;
     UINTN                   DescriptorSize;
     UINT32                  DescriptorVersion;
-    EFI_MEMORY_DESCRIPTOR   *MemoryMap;
-    EFI_MEMORY_DESCRIPTOR   *MemoryMapEnd = NULL;
+    EFI_MEMORY_DESCRIPTOR   *MemoryMap = NULL;
 
     Status = SystemTable->BootServices->GetMemoryMap (
         &MemoryMapSize, 
