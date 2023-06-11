@@ -8,6 +8,7 @@
 #include <Library/UefiLib.h>
 #include <Library/UefiImageLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <Library/DebugLib.h>
 #include <Library/PeCoffLib2.h>
@@ -120,6 +121,7 @@ RunKernelPE (
     );
 
   EFI_FILE  *KernelFile;
+  EFI_FILE  *FontFile;
 
   //
   //  Allocate pool memory to load the kernel
@@ -133,6 +135,20 @@ RunKernelPE (
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY FOR KERNEL FILE\r\n"
+    );
+
+  //
+  //  Allocate pool memory to load
+  //  the PSF font file.
+  //
+  Status = SystemTable->BootServices->AllocatePool (
+                                        EfiLoaderCode,
+                                        sizeof (EFI_FILE_PROTOCOL),
+                                        (VOID **)&FontFile
+                                        );
+  HANDLE_STATUS (
+    Status,
+    L"FAILED TO ALLOCATE MEMORY POOL FOR FONT FILE\r\n"
     );
 
   //
@@ -151,39 +167,99 @@ RunKernelPE (
     L"KERNEL FILE IS MISSING...\r\n"
     );
 
-  UINTN  FileInfoSize;
+  //
+  //  Read the font file's contents
+  //  into the previously allocated buffer.
+  //
+  Status = CurrentDriveRoot->Open (
+                               CurrentDriveRoot,
+                               &FontFile,
+                               L"font.psf",
+                               EFI_FILE_MODE_READ,
+                               EFI_FILE_READ_ONLY
+                               );
+  HANDLE_STATUS (
+    Status,
+    L"FONT FILE (font.psf) IS MISSING...\r\n"
+    );
+
+  UINTN          FontFileInfoSize;
+  EFI_FILE_INFO  *FontFileInfo = NULL;
+  VOID           *Font;
 
   //
-  //  Get the size of the FileInfo buffer.
+  //  Obtain the pointer to the FileInfo struct.
   //
-  KernelFile->GetInfo (
-                KernelFile,
-                &gEfiFileInfoGuid,
-                &FileInfoSize,
-                NULL
-                );
+  Status = FontFile->GetInfo (
+                       FontFile,
+                       &gEfiFileInfoGuid,
+                       &FontFileInfoSize,
+                       NULL
+                       );
 
-  //
-  //  FileInfo not available?
-  //
-  if (FileInfoSize == 0) {
-    return EFI_NOT_FOUND;
+  if (Status == EFI_BUFFER_TOO_SMALL) {
+    Status = SystemTable->BootServices->AllocatePool (
+                                          EfiLoaderCode,
+                                          FontFileInfoSize,
+                                          (VOID **)&FontFileInfo
+                                          );
   }
 
-  EFI_FILE_INFO  *FileInfo;
+  Status = FontFile->GetInfo (
+                       FontFile,
+                       &gEfiFileInfoGuid,
+                       &FontFileInfoSize,
+                       FontFileInfo
+                       );
+
+  HANDLE_STATUS (
+    Status,
+    L"FAILED TO OBTAIN FILE INFO FROM PSF FONT FILE\r\n"
+    );
+
+  Print (L"Font file name: %s\r\n", FontFileInfo->FileName);
+  Print (L"Size: %llu\r\n", FontFileInfo->FileSize);
+  Print (L"Physical size: %llu\r\n", FontFileInfo->PhysicalSize);
+  Print (L"Attribute: %llx\r\n", FontFileInfo->Attribute);
 
   //
-  //  Allocate pool memory for the FileInfo struct.
+  //  Allocate pool memory for actually
+  //  reading the font file's contents.
   //
   Status = SystemTable->BootServices->AllocatePool (
                                         EfiLoaderCode,
-                                        FileInfoSize,
-                                        (VOID **)&FileInfo
+                                        FontFileInfo->FileSize,
+                                        (VOID **)&Font
                                         );
   HANDLE_STATUS (
     Status,
-    L"FAILED TO ALLOCATE MEMORY FOR FILE INFO PTR\r\n"
+    L"FAILED TO ALLOCATE POOL MEMORY FOR 'Font' BUFFER!\r\n"
     );
+
+  //
+  //  Place the contents of the file into
+  //  the "Font" buffer so that we don't have to
+  //  call `FontFile->Read()` constantly.
+  //
+  Status = FontFile->Read (
+                       FontFile,
+                       &(FontFileInfo->FileSize),
+                       Font
+                       );
+  HANDLE_STATUS (
+    Status,
+    L"FAILED TO READ CONTENTS OF (font) FILE INTO BUFFER!\r\n"
+    );
+
+  //
+  //  Nothing to read??
+  //
+  if (Font == NULL) {
+    return EFI_NOT_FOUND;
+  }
+
+  UINTN          FileInfoSize;
+  EFI_FILE_INFO  *FileInfo = NULL;
 
   //
   //  Obtain the pointer to the FileInfo struct.
@@ -192,8 +268,24 @@ RunKernelPE (
                          KernelFile,
                          &gEfiFileInfoGuid,
                          &FileInfoSize,
+                         NULL
+                         );
+
+  if (Status == EFI_BUFFER_TOO_SMALL) {
+    Status = SystemTable->BootServices->AllocatePool (
+                                          EfiLoaderCode,
+                                          FileInfoSize,
+                                          (VOID **)&FileInfo
+                                          );
+  }
+
+  Status = KernelFile->GetInfo (
+                         KernelFile,
+                         &gEfiFileInfoGuid,
+                         &FileInfoSize,
                          FileInfo
                          );
+
   HANDLE_STATUS (
     Status,
     L"FAILED TO OBTAIN FILE INFO FROM KERNEL\r\n"
@@ -283,8 +375,8 @@ RunKernelPE (
   //  for the destination Image memory space
   //  to load into.
   //
-  UINT32 FinalSize      = PeCoffGetSizeOfImage (&Context);
-  UINT32 ImageAlignment = PeCoffGetSectionAlignment (&Context);
+  UINT32  FinalSize      = PeCoffGetSizeOfImage (&Context);
+  UINT32  ImageAlignment = PeCoffGetSectionAlignment (&Context);
 
   if (FinalSize < 1) {
     Print (L"INVALID DESTINATION SIZE\r\n");
@@ -381,7 +473,7 @@ RunKernelPE (
   //
   UINTN  EntryPoint = PeCoffGetAddressOfEntryPoint (&Context);
 
-  Print (L"Address of entry point ctx = 0x%llx\r\n", Context.AddressOfEntryPoint);
+  Print (L"Base address = 0x%llx\r\n", (UINTN)BaseAddress);
   Print (L"Address of entry point = 0x%llx\r\n", EntryPoint);
 
   //
@@ -400,7 +492,7 @@ RunKernelPE (
   FB->FramebufferSize = GOP->Mode->FrameBufferSize;
   FB->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
   FB->VerticalRes     = GOP->Mode->Info->VerticalResolution;
-  FB->BPP             = 4;   // 32bits / 8 = 4 bytes
+  FB->BPP             = 4;                                    // 32bits / 8 = 4 bytes
   FB->PPS             = GOP->Mode->Info->PixelsPerScanLine;
   FB->Pitch           = FB->PPS * FB->BPP;
   FB->PixelBitmask    = GOP->Mode->Info->PixelInformation;
@@ -412,30 +504,47 @@ RunKernelPE (
   Print (L"[GOP]: Vertical resolution = %lu\r\n", GOP->Mode->Info->VerticalResolution);
   Print (L"[GOP]: PixelsPerScanLine = %lu\r\n", GOP->Mode->Info->PixelsPerScanLine);
 
-  EFI_KERN_MEMORY_MAP  MemoryMap;
-
   //
   //  Attempt to obtain the system memory map.
   //
-  MemoryMap = EfiKernGetMemoryMap (ImageHandle, SystemTable);
+  UINTN                  MemoryMapSize;
+  UINTN                  MMapKey;
+  UINTN                  DescriptorSize;
+  UINT32                 DescriptorVersion;
+  EFI_MEMORY_DESCRIPTOR  *MemoryMap = NULL;
 
-  //
-  //  This usually shouldn't happen...
-  //
-  if (MemoryMap.Empty == TRUE) {
-    Print (L"KERN MEMORY MAP IS EMPTY!\r\n");
+  Status = SystemTable->BootServices->GetMemoryMap (
+                                        &MemoryMapSize,
+                                        MemoryMap,
+                                        &MMapKey,
+                                        &DescriptorSize,
+                                        &DescriptorVersion
+                                        );
 
-    return EFI_NOT_FOUND;
+  if (Status == EFI_BUFFER_TOO_SMALL) {
+    MemoryMapSize += DescriptorSize * 2;
+    MemoryMap      = (EFI_MEMORY_DESCRIPTOR *)AllocatePool (MemoryMapSize);
+
+    Status = SystemTable->BootServices->GetMemoryMap (
+                                          &MemoryMapSize,
+                                          MemoryMap,
+                                          &MMapKey,
+                                          &DescriptorSize,
+                                          &DescriptorVersion
+                                          );
+
+    if (EFI_ERROR (Status)) {
+      FreePool (MemoryMap);
+    }
   }
-  //
-  //  Even weirder.
-  //
-  //  This should technically be
-  //  a redundant check that could
-  //  never possibly happen.
-  //
-  else if (MemoryMap.MemoryMap == NULL) {
-    Print (L"EFI MEMORY MAP IS NULL BUT STRUCT MARKED AS NON-EMPTY!\r\n");
+
+  HANDLE_STATUS (
+    Status,
+    L"FAILED TO OBTAIN SYSTEM MEMORY MAP...\r\n"
+    );
+
+  if (MemoryMap == NULL) {
+    Print (L"SYSTEM MEMORY MAP IS NULL!!\r\n");
 
     return EFI_NOT_FOUND;
   }
@@ -446,28 +555,39 @@ RunKernelPE (
   HANDLE_STATUS (
     SystemTable->BootServices->ExitBootServices (
                                  ImageHandle,
-                                 MemoryMap.MMapKey
+                                 MMapKey
                                  ),
     L"FAILED TO EXIT BOOT SERVICES\r\n"
     );
+
+  EFI_KERN_MEMORY_MAP  KernMemoryMap = (EFI_KERN_MEMORY_MAP) {
+    .MemoryMapSize     = MemoryMapSize,
+    .MMapKey           = MMapKey,
+    .DescriptorSize    = DescriptorSize,
+    .DescriptorVersion = DescriptorVersion,
+    .MemoryMap         = MemoryMap,
+    .Empty             = FALSE
+  };
 
   //
   //  Locate the EP function and call it with the arguments.
   //
   typedef void (__attribute__ ((ms_abi)) *EntryPointFunction)(
-  EFI_RUNTIME_SERVICES                         *RT,                /// Pointer to the runtime services.
-  EFI_KERN_MEMORY_MAP                          *MemoryMap,         /// Pointer to the EFI_KERN_MEMORY_MAP.
-  ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,             /// Pointer to the DSDT pointer.
-  KERN_FRAMEBUFFER                             *Framebuffer        /// Pointer to the KERN_FRAMEBUFFER.
+  EFI_RUNTIME_SERVICES                         *RT,            /// Pointer to the runtime services.
+  EFI_KERN_MEMORY_MAP                          *KernMemoryMap, /// Pointer to the EFI_KERN_MEMORY_MAP.
+  ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,         /// Pointer to the DSDT pointer.
+  KERN_FRAMEBUFFER                             *Framebuffer,    /// Pointer to the KERN_FRAMEBUFFER.
+  VOID                                         *TerminalFont   /// Pointer to the PSF font file contents
   );
 
   EntryPointFunction  EntryPointPlaceholder = (EntryPointFunction)(BaseAddress + EntryPoint);
 
   EntryPointPlaceholder (
     SystemTable->RuntimeServices,
-    &MemoryMap,
+    &KernMemoryMap,
     Dsdt,
-    FB
+    FB,
+    Font
     );
 
   // Should never reach here...
