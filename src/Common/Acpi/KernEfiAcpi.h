@@ -10,15 +10,15 @@
     header, according to the ACPI 6.5 specification.
  **/
 typedef struct {
-    UINT32      Signature;
-    UINT32      Length;
-    UINT8       Revision;
-    UINT8       Checksum;
-    UINT8       OemId[6];
-    UINT8       OemTableId[8];
-    UINT8       OemRevision[4];
-    UINT8       CreatorId[4];
-    UINT8       CreatorRevision[4];
+  UINT32    Signature;
+  UINT32    Length;
+  UINT8     Revision;
+  UINT8     Checksum;
+  UINT8     OemId[6];
+  UINT8     OemTableId[8];
+  UINT8     OemRevision[4];
+  UINT8     CreatorId[4];
+  UINT8     CreatorRevision[4];
 } SDT_HEADER;
 
 /**
@@ -26,8 +26,8 @@ typedef struct {
     according to the ACPI 6.5 specification.
  **/
 typedef struct {
-    SDT_HEADER  Sdt;
-    UINT64      BytecodeCount;
+  SDT_HEADER    Sdt;
+  UINT64        BytecodeCount;
 } ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE;
 
 /**
@@ -43,21 +43,23 @@ typedef struct {
                                     In which case, use the RSDT instead.
  **/
 EFI_STATUS
-EfiLocateFadtFromXsdt (
-    IN  EFI_ACPI_DESCRIPTION_HEADER  *Xsdt,
-    OUT EFI_ACPI_COMMON_HEADER       **Fadt);
+EfiLocateFadtFromXsdtOrRsdt (
+  IN  EFI_ACPI_DESCRIPTION_HEADER  *Xsdt,
+  OUT EFI_ACPI_COMMON_HEADER       **Fadt
+  );
 
 /**
     Obtains all necessary tables... (using the RSDP initially)
     - RSDT (ACPI 1.0);
     - XSDT (ACPI 2.0+);
-    - FADT;
+    - FADT; and
     - DSDT
 
     @param[out]     Rsdp            The RSDP to locate.
     @param[out]     Rsdt            The RSDT to locate.
     @param[out]     Xsdt            The XSDT to locate.
     @param[out]     Fadt            The FADT to locate.
+    @param[out]     Dsdt            The DSDT to locate.
 
     @retval         EFI_SUCCESS     All necessary tables have been found
     @retval         EFI_ERROR       Something went wrong during the discovery process.
@@ -65,10 +67,11 @@ EfiLocateFadtFromXsdt (
  **/
 EFI_STATUS
 EfiGetTables (
-    OUT EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER **Rsdp,
-    OUT EFI_ACPI_DESCRIPTION_HEADER                  **Rsdt,
-    OUT EFI_ACPI_DESCRIPTION_HEADER                  **Xsdt,
-    OUT EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE    **Fadt,
-    OUT ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt);
+  OUT EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER  **Rsdp,
+  OUT EFI_ACPI_DESCRIPTION_HEADER                   **Rsdt,
+  OUT EFI_ACPI_DESCRIPTION_HEADER                   **Xsdt,
+  OUT EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE     **Fadt,
+  OUT ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE   **Dsdt
+  );
 
 #endif /* KernEfiAcpi.h */

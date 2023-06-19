@@ -10,18 +10,6 @@
 #include <Library/UefiLib.h>
 
 /**
-    A structure used to "contain" all
-    the parameters to be passed down
-    to the kernel's EP. 
- **/
-typedef struct {
-    EFI_RUNTIME_SERVICES                         *RT;           /// Pointer to the runtime services.
-    EFI_KERN_MEMORY_MAP                          *MemoryMap;    /// Pointer to the EFI_KERN_MEMORY_MAP.
-    ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt;        /// Pointer to the DSDT pointer.
-    KERN_FRAMEBUFFER                             *Framebuffer;  /// Pointer to the KERN_FRAMEBUFFER.
-} LOADER_PARAMS;
-
-/**
     Function that handles reading, parsing,
     appropriately relocating the image and calling the EP
     from a PE32+ image. Thank you to Marvin Häuser (https://github.com/mhaeuser)
@@ -30,7 +18,7 @@ typedef struct {
 
     @param[in]  ImageHandle             The image handle.
     @param[in]  SystemTable             Pointer to the system table.
-    @param[in]  Dsdt                    Pointer to the DSDT pointer.
+    @param[in]  Dsdt                    Pointer to the DSDT.
     @param[in]  FB                      Pointer to the KERN_FRAMEBUFFER
     @param[in]  GOP                     Pointer to the GOP handle.
 
@@ -41,10 +29,11 @@ typedef struct {
  **/
 EFI_STATUS
 RunKernelPE (
-    IN EFI_HANDLE                                   ImageHandle,
-    IN EFI_SYSTEM_TABLE                             *SystemTable,
-    IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,
-    IN KERN_FRAMEBUFFER                             *FB,
-    IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 *GOP);
+  IN EFI_HANDLE                                   ImageHandle,
+  IN EFI_SYSTEM_TABLE                             *SystemTable,
+  IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,
+  IN KERN_FRAMEBUFFER                             *FB,
+  IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 *GOP
+  );
 
 #endif /* KernelLoader.h */
