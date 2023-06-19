@@ -348,6 +348,34 @@ RunKernelPE (
   }
 
   //
+  //  Set the wanted video mode (1366x768).
+  //
+  GOP->SetMode (GOP, FB->CurrentMode);
+
+  Print (L"[GOP]: Mode = %lu\r\n", FB->CurrentMode);
+  Print (L"[GOP]: Successfully set mode.\r\n");
+
+  //
+  //  "Populate" the framebuffer struct pointer
+  //  with all the necessary information.
+  //
+  FB->FramebufferBase = GOP->Mode->FrameBufferBase;
+  FB->FramebufferSize = GOP->Mode->FrameBufferSize;
+  FB->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
+  FB->VerticalRes     = GOP->Mode->Info->VerticalResolution;
+  FB->BPP             = 4;  // 32bits / 8 = 4 bytes
+  FB->PPS             = GOP->Mode->Info->PixelsPerScanLine;
+  FB->Pitch           = FB->PPS * FB->BPP;
+  FB->PixelBitmask    = GOP->Mode->Info->PixelInformation;
+
+  Print (L"[GOP]: FramebufferBase = 0x%llx\r\n", GOP->Mode->FrameBufferBase);
+  Print (L"[GOP]: FramebufferEnd = 0x%llx\r\n", GOP->Mode->FrameBufferBase + GOP->Mode->FrameBufferSize);
+
+  Print (L"[GOP]: Horizontal resolution = %lu\r\n", GOP->Mode->Info->HorizontalResolution);
+  Print (L"[GOP]: Vertical resolution = %lu\r\n", GOP->Mode->Info->VerticalResolution);
+  Print (L"[GOP]: PixelsPerScanLine = %lu\r\n", GOP->Mode->Info->PixelsPerScanLine);
+
+  //
   //  Special thank you to Marvin Häuser (https://github.com/mhaeuser)
   //  for providing me with a rich library (PeCoffLib2)
   //  which abstracts and minimizes my pain
@@ -477,34 +505,6 @@ RunKernelPE (
   Print (L"Address of entry point = 0x%llx\r\n", EntryPoint);
 
   //
-  //  Set the wanted video mode (1366x768).
-  //
-  GOP->SetMode (GOP, FB->CurrentMode);
-
-  Print (L"[GOP]: Mode = %lu\r\n", FB->CurrentMode);
-  Print (L"[GOP]: Successfully set mode.\r\n");
-
-  //
-  //  "Populate" the framebuffer struct pointer
-  //  with all the necessary information.
-  //
-  FB->FramebufferBase = GOP->Mode->FrameBufferBase;
-  FB->FramebufferSize = GOP->Mode->FrameBufferSize;
-  FB->HorizontalRes   = GOP->Mode->Info->HorizontalResolution;
-  FB->VerticalRes     = GOP->Mode->Info->VerticalResolution;
-  FB->BPP             = 4;                                    // 32bits / 8 = 4 bytes
-  FB->PPS             = GOP->Mode->Info->PixelsPerScanLine;
-  FB->Pitch           = FB->PPS * FB->BPP;
-  FB->PixelBitmask    = GOP->Mode->Info->PixelInformation;
-
-  Print (L"[GOP]: FramebufferBase = 0x%llx\r\n", GOP->Mode->FrameBufferBase);
-  Print (L"[GOP]: FramebufferEnd = 0x%llx\r\n", GOP->Mode->FrameBufferBase + GOP->Mode->FrameBufferSize);
-
-  Print (L"[GOP]: Horizontal resolution = %lu\r\n", GOP->Mode->Info->HorizontalResolution);
-  Print (L"[GOP]: Vertical resolution = %lu\r\n", GOP->Mode->Info->VerticalResolution);
-  Print (L"[GOP]: PixelsPerScanLine = %lu\r\n", GOP->Mode->Info->PixelsPerScanLine);
-
-  //
   //  Attempt to obtain the system memory map.
   //
   UINTN                  MemoryMapSize;
@@ -522,8 +522,16 @@ RunKernelPE (
                                         );
 
   if (Status == EFI_BUFFER_TOO_SMALL) {
-    MemoryMapSize += DescriptorSize * 2;
-    MemoryMap      = (EFI_MEMORY_DESCRIPTOR *)AllocatePool (MemoryMapSize);
+    Status = SystemTable->BootServices->AllocatePool (
+                                          EfiLoaderCode,
+                                          MemoryMapSize + DescriptorSize,
+                                          (VOID **)&MemoryMap
+                                          );
+
+    HANDLE_STATUS (
+      Status,
+      L"FAILED TO ALLOCATE MEMORY FOR MEMORY MAP\r\n"
+      );
 
     Status = SystemTable->BootServices->GetMemoryMap (
                                           &MemoryMapSize,
@@ -534,14 +542,14 @@ RunKernelPE (
                                           );
 
     if (EFI_ERROR (Status)) {
-      FreePool (MemoryMap);
+      SystemTable->BootServices->FreePool (MemoryMap);
+
+      HANDLE_STATUS (
+        Status,
+        L"FAILED TO FREE MEMORY MAP!!!\r\n"
+        );
     }
   }
-
-  HANDLE_STATUS (
-    Status,
-    L"FAILED TO OBTAIN SYSTEM MEMORY MAP...\r\n"
-    );
 
   if (MemoryMap == NULL) {
     Print (L"SYSTEM MEMORY MAP IS NULL!!\r\n");
@@ -552,13 +560,71 @@ RunKernelPE (
   //
   //  Exit boot services.
   //
-  HANDLE_STATUS (
-    SystemTable->BootServices->ExitBootServices (
-                                 ImageHandle,
-                                 MMapKey
-                                 ),
-    L"FAILED TO EXIT BOOT SERVICES\r\n"
-    );
+  Status = SystemTable->BootServices->ExitBootServices (
+                                        ImageHandle,
+                                        MMapKey
+                                        );
+
+  if (EFI_ERROR (Status)) {
+    SystemTable->BootServices->FreePool (MemoryMap);
+
+    HANDLE_STATUS (
+      Status,
+      L"FAILED TO FREE MEM POOL!!!!\r\n"
+      );
+
+    MemoryMapSize = 0;
+
+    Status = SystemTable->BootServices->GetMemoryMap (
+                                          &MemoryMapSize,
+                                          MemoryMap,
+                                          &MMapKey,
+                                          &DescriptorSize,
+                                          &DescriptorVersion
+                                          );
+
+    if (Status == EFI_BUFFER_TOO_SMALL) {
+      Status = SystemTable->BootServices->AllocatePool (
+                                            EfiLoaderData,
+                                            MemoryMapSize + DescriptorSize,
+                                            (VOID **)&MemoryMap
+                                            );
+
+      HANDLE_STATUS (
+        Status,
+        L"FAILED TO ALLOCATE MEMORY FOR MEMORY MAP...AGAIN!\r\n"
+        );
+
+      Status = SystemTable->BootServices->GetMemoryMap (
+                                            &MemoryMapSize,
+                                            MemoryMap,
+                                            &MMapKey,
+                                            &DescriptorSize,
+                                            &DescriptorVersion
+                                            );
+
+      HANDLE_STATUS (
+        Status,
+        L"FAILED TO GET MEMORY MAP 2nD TIME AROUND...\r\n"
+        );
+
+      if (MemoryMap == NULL) {
+        Print (L"MEMORY MAP IS NULL AGAIN???\r\n");
+
+        return EFI_NOT_FOUND;
+      }
+    }
+
+    Status = SystemTable->BootServices->ExitBootServices (
+                                          ImageHandle,
+                                          MMapKey
+                                          );
+
+    HANDLE_STATUS (
+      Status,
+      L"FAILED TO EXIT BOOT SERVICES\r\n"
+      );
+  }
 
   EFI_KERN_MEMORY_MAP  KernMemoryMap = (EFI_KERN_MEMORY_MAP) {
     .MemoryMapSize     = MemoryMapSize,
@@ -576,7 +642,7 @@ RunKernelPE (
   EFI_RUNTIME_SERVICES                         *RT,            /// Pointer to the runtime services.
   EFI_KERN_MEMORY_MAP                          *KernMemoryMap, /// Pointer to the EFI_KERN_MEMORY_MAP.
   ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,         /// Pointer to the DSDT pointer.
-  KERN_FRAMEBUFFER                             *Framebuffer,    /// Pointer to the KERN_FRAMEBUFFER.
+  KERN_FRAMEBUFFER                             *Framebuffer,   /// Pointer to the KERN_FRAMEBUFFER.
   VOID                                         *TerminalFont   /// Pointer to the PSF font file contents
   );
 
