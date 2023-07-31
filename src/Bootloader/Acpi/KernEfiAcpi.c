@@ -61,6 +61,7 @@ EfiLocateFadtFromXsdtOrRsdt (
 
   return EFI_NOT_FOUND;
 }
+
 #pragma GCC diagnostic pop
 
 EFI_STATUS
@@ -78,9 +79,9 @@ EfiGetTables (
   //  Attempt to locate the RSDP.
   //
   Status = EfiGetSystemConfigurationTable (
-             &gEfiAcpi20TableGuid,
-             (VOID **)Rsdp
-             );
+    &gEfiAcpi20TableGuid,
+    (VOID **)Rsdp
+    );
 
   HANDLE_STATUS (
     Status,
@@ -131,15 +132,15 @@ EfiGetTables (
   //  and that the signature is that of the XSDT.
   //
   if (
-      (
-       (*Rsdt != NULL) &&
-       ((*Rsdt)->Signature == EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_TABLE_SIGNATURE)
-      ) ||
-      (
-       (*Xsdt != NULL) &&
-       ((*Xsdt)->Signature == EFI_ACPI_2_0_EXTENDED_SYSTEM_DESCRIPTION_TABLE_SIGNATURE)
-      )
-      )
+    (
+      (*Rsdt != NULL) &&
+      ((*Rsdt)->Signature == EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_TABLE_SIGNATURE)
+    ) ||
+    (
+      (*Xsdt != NULL) &&
+      ((*Xsdt)->Signature == EFI_ACPI_2_0_EXTENDED_SYSTEM_DESCRIPTION_TABLE_SIGNATURE)
+    )
+    )
   {
     Status = EfiLocateFadtFromXsdtOrRsdt (*Xsdt, (EFI_ACPI_COMMON_HEADER **)Fadt);
 
@@ -190,10 +191,10 @@ EfiGetTables (
   }
 
   if (
-      (*Dsdt == NULL) ||
-      (*Fadt == NULL) ||
-      (*Rsdp == NULL)
-      )
+    (*Dsdt == NULL) ||
+    (*Fadt == NULL) ||
+    (*Rsdp == NULL)
+    )
   {
     return EFI_NOT_FOUND;
   }

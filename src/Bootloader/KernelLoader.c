@@ -42,10 +42,10 @@ RunKernelPE (
   //  the Loaded Image buffer into.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiBootServicesData,
-                                        sizeof (EFI_LOADED_IMAGE_PROTOCOL),
-                                        (VOID **)&LoadedImage
-                                        );
+    EfiBootServicesData,
+    sizeof (EFI_LOADED_IMAGE_PROTOCOL),
+    (VOID **)&LoadedImage
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY FOR LOADED IMAGE\r\n"
@@ -55,13 +55,13 @@ RunKernelPE (
   //  Obtain the Loaded Image.
   //
   Status = SystemTable->BootServices->OpenProtocol (
-                                        ImageHandle,
-                                        &LoadedImageProtocol,
-                                        (VOID **)&LoadedImage,
-                                        ImageHandle,
-                                        NULL,
-                                        EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-                                        );
+    ImageHandle,
+    &LoadedImageProtocol,
+    (VOID **)&LoadedImage,
+    ImageHandle,
+    NULL,
+    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO OPEN IMAGE\r\n"
@@ -74,10 +74,10 @@ RunKernelPE (
   //  Allocate pool memory for the FS handle.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiBootServicesData,
-                                        sizeof (EFI_SIMPLE_FILE_SYSTEM_PROTOCOL),
-                                        (VOID **)&FileSystem
-                                        );
+    EfiBootServicesData,
+    sizeof (EFI_SIMPLE_FILE_SYSTEM_PROTOCOL),
+    (VOID **)&FileSystem
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY FOR FILE SYSTEM\r\n"
@@ -87,13 +87,13 @@ RunKernelPE (
   //  Obtain the FileSystem handle.
   //
   Status = SystemTable->BootServices->OpenProtocol (
-                                        LoadedImage->DeviceHandle,
-                                        &FileSystemProtocol,
-                                        (VOID **)&FileSystem,
-                                        ImageHandle,
-                                        NULL,
-                                        EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-                                        );
+    LoadedImage->DeviceHandle,
+    &FileSystemProtocol,
+    (VOID **)&FileSystem,
+    ImageHandle,
+    NULL,
+    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO OPEN PROTOCOL BY HANDLE\r\n"
@@ -102,10 +102,10 @@ RunKernelPE (
   EFI_FILE  *CurrentDriveRoot;
 
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiLoaderCode,
-                                        sizeof (EFI_FILE_PROTOCOL),
-                                        (VOID **)&CurrentDriveRoot
-                                        );
+    EfiLoaderCode,
+    sizeof (EFI_FILE_PROTOCOL),
+    (VOID **)&CurrentDriveRoot
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY FOR CURRENT DRIVE ROOT\r\n"
@@ -128,10 +128,10 @@ RunKernelPE (
   //  file's buffer into.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiLoaderCode,
-                                        sizeof (EFI_FILE_PROTOCOL),
-                                        (VOID **)&KernelFile
-                                        );
+    EfiLoaderCode,
+    sizeof (EFI_FILE_PROTOCOL),
+    (VOID **)&KernelFile
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY FOR KERNEL FILE\r\n"
@@ -142,10 +142,10 @@ RunKernelPE (
   //  the PSF font file.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiLoaderCode,
-                                        sizeof (EFI_FILE_PROTOCOL),
-                                        (VOID **)&FontFile
-                                        );
+    EfiLoaderCode,
+    sizeof (EFI_FILE_PROTOCOL),
+    (VOID **)&FontFile
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY POOL FOR FONT FILE\r\n"
@@ -156,12 +156,12 @@ RunKernelPE (
   //  into the previously allocated buffer.
   //
   Status = CurrentDriveRoot->Open (
-                               CurrentDriveRoot,
-                               &KernelFile,
-                               L"kernel.bin",
-                               EFI_FILE_MODE_READ,
-                               EFI_FILE_READ_ONLY
-                               );
+    CurrentDriveRoot,
+    &KernelFile,
+    L"kernel.bin",
+    EFI_FILE_MODE_READ,
+    EFI_FILE_READ_ONLY
+    );
   HANDLE_STATUS (
     Status,
     L"KERNEL FILE IS MISSING...\r\n"
@@ -172,12 +172,12 @@ RunKernelPE (
   //  into the previously allocated buffer.
   //
   Status = CurrentDriveRoot->Open (
-                               CurrentDriveRoot,
-                               &FontFile,
-                               L"font.psf",
-                               EFI_FILE_MODE_READ,
-                               EFI_FILE_READ_ONLY
-                               );
+    CurrentDriveRoot,
+    &FontFile,
+    L"font.psf",
+    EFI_FILE_MODE_READ,
+    EFI_FILE_READ_ONLY
+    );
   HANDLE_STATUS (
     Status,
     L"FONT FILE (font.psf) IS MISSING...\r\n"
@@ -191,26 +191,26 @@ RunKernelPE (
   //  Obtain the pointer to the FileInfo struct.
   //
   Status = FontFile->GetInfo (
-                       FontFile,
-                       &gEfiFileInfoGuid,
-                       &FontFileInfoSize,
-                       NULL
-                       );
+    FontFile,
+    &gEfiFileInfoGuid,
+    &FontFileInfoSize,
+    NULL
+    );
 
   if (Status == EFI_BUFFER_TOO_SMALL) {
     Status = SystemTable->BootServices->AllocatePool (
-                                          EfiLoaderCode,
-                                          FontFileInfoSize,
-                                          (VOID **)&FontFileInfo
-                                          );
+      EfiLoaderCode,
+      FontFileInfoSize,
+      (VOID **)&FontFileInfo
+      );
   }
 
   Status = FontFile->GetInfo (
-                       FontFile,
-                       &gEfiFileInfoGuid,
-                       &FontFileInfoSize,
-                       FontFileInfo
-                       );
+    FontFile,
+    &gEfiFileInfoGuid,
+    &FontFileInfoSize,
+    FontFileInfo
+    );
 
   HANDLE_STATUS (
     Status,
@@ -227,10 +227,10 @@ RunKernelPE (
   //  reading the font file's contents.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiLoaderCode,
-                                        FontFileInfo->FileSize,
-                                        (VOID **)&Font
-                                        );
+    EfiLoaderCode,
+    FontFileInfo->FileSize,
+    (VOID **)&Font
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE POOL MEMORY FOR 'Font' BUFFER!\r\n"
@@ -242,10 +242,10 @@ RunKernelPE (
   //  call `FontFile->Read()` constantly.
   //
   Status = FontFile->Read (
-                       FontFile,
-                       &(FontFileInfo->FileSize),
-                       Font
-                       );
+    FontFile,
+    &(FontFileInfo->FileSize),
+    Font
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO READ CONTENTS OF (font) FILE INTO BUFFER!\r\n"
@@ -265,26 +265,26 @@ RunKernelPE (
   //  Obtain the pointer to the FileInfo struct.
   //
   Status = KernelFile->GetInfo (
-                         KernelFile,
-                         &gEfiFileInfoGuid,
-                         &FileInfoSize,
-                         NULL
-                         );
+    KernelFile,
+    &gEfiFileInfoGuid,
+    &FileInfoSize,
+    NULL
+    );
 
   if (Status == EFI_BUFFER_TOO_SMALL) {
     Status = SystemTable->BootServices->AllocatePool (
-                                          EfiLoaderCode,
-                                          FileInfoSize,
-                                          (VOID **)&FileInfo
-                                          );
+      EfiLoaderCode,
+      FileInfoSize,
+      (VOID **)&FileInfo
+      );
   }
 
   Status = KernelFile->GetInfo (
-                         KernelFile,
-                         &gEfiFileInfoGuid,
-                         &FileInfoSize,
-                         FileInfo
-                         );
+    KernelFile,
+    &gEfiFileInfoGuid,
+    &FileInfoSize,
+    FileInfo
+    );
 
   HANDLE_STATUS (
     Status,
@@ -314,10 +314,10 @@ RunKernelPE (
   //  reading the data of the kernel file.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiLoaderCode,
-                                        FileInfo->FileSize,
-                                        (VOID **)&Kernel
-                                        );
+    EfiLoaderCode,
+    FileInfo->FileSize,
+    (VOID **)&Kernel
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY POOL FOR FILE BUFFER\r\n"
@@ -329,10 +329,10 @@ RunKernelPE (
   //  call `KernelFile->Read()' constantly.
   //
   Status = KernelFile->Read (
-                         KernelFile,
-                         &(FileInfo->FileSize),
-                         Kernel
-                         );
+    KernelFile,
+    &(FileInfo->FileSize),
+    Kernel
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO READ CONTENTS OF FILE INTO BUFFER\r\n"
@@ -389,10 +389,10 @@ RunKernelPE (
   //  Initialize image context.
   //
   Status = PeCoffInitializeContext (
-             &Context,
-             Kernel,
-             FileInfo->FileSize
-             );
+    &Context,
+    Kernel,
+    FileInfo->FileSize
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO INITIALIZE CONTEXT\r\n"
@@ -414,10 +414,10 @@ RunKernelPE (
 
   if (ImageAlignment > EFI_PAGE_SIZE) {
     BOOLEAN  Overflow = BaseOverflowAddU32 (
-                          FinalSize,
-                          ImageAlignment - EFI_PAGE_SIZE,
-                          &FinalSize
-                          );
+      FinalSize,
+      ImageAlignment - EFI_PAGE_SIZE,
+      &FinalSize
+      );
 
     if (Overflow) {
       Print (L"ALIGNMENT OVERFLOW: FAIL!");
@@ -433,11 +433,11 @@ RunKernelPE (
   //  pages for the loaded image.
   //
   Status = SystemTable->BootServices->AllocatePages (
-                                        AllocateAnyPages,
-                                        EfiLoaderCode,
-                                        EFI_SIZE_TO_PAGES (FinalSize),
-                                        &LoadImg
-                                        );
+    AllocateAnyPages,
+    EfiLoaderCode,
+    EFI_SIZE_TO_PAGES (FinalSize),
+    &LoadImg
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY FOR IMAGE\r\n"
@@ -449,10 +449,10 @@ RunKernelPE (
   //  Actually load the image from the context.
   //
   Status = PeCoffLoadImage (
-             &Context,
-             (VOID *)LoadImg,
-             FinalSize
-             );
+    &Context,
+    (VOID *)LoadImg,
+    FinalSize
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO LOAD IMAGE FROM CONTEXT\r\n"
@@ -483,11 +483,11 @@ RunKernelPE (
   //  destination address for boot-time usage.
   //
   Status = PeCoffRelocateImage (
-             &Context,
-             BaseAddress,
-             NULL,
-             0
-             );
+    &Context,
+    BaseAddress,
+    NULL,
+    0
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO RELOCATE IMAGE TO ADDRESS 0x%llx\r\n",
@@ -514,19 +514,19 @@ RunKernelPE (
   EFI_MEMORY_DESCRIPTOR  *MemoryMap = NULL;
 
   Status = SystemTable->BootServices->GetMemoryMap (
-                                        &MemoryMapSize,
-                                        MemoryMap,
-                                        &MMapKey,
-                                        &DescriptorSize,
-                                        &DescriptorVersion
-                                        );
+    &MemoryMapSize,
+    MemoryMap,
+    &MMapKey,
+    &DescriptorSize,
+    &DescriptorVersion
+    );
 
   if (Status == EFI_BUFFER_TOO_SMALL) {
     Status = SystemTable->BootServices->AllocatePool (
-                                          EfiLoaderCode,
-                                          MemoryMapSize + DescriptorSize,
-                                          (VOID **)&MemoryMap
-                                          );
+      EfiLoaderCode,
+      MemoryMapSize + DescriptorSize,
+      (VOID **)&MemoryMap
+      );
 
     HANDLE_STATUS (
       Status,
@@ -534,12 +534,12 @@ RunKernelPE (
       );
 
     Status = SystemTable->BootServices->GetMemoryMap (
-                                          &MemoryMapSize,
-                                          MemoryMap,
-                                          &MMapKey,
-                                          &DescriptorSize,
-                                          &DescriptorVersion
-                                          );
+      &MemoryMapSize,
+      MemoryMap,
+      &MMapKey,
+      &DescriptorSize,
+      &DescriptorVersion
+      );
 
     if (EFI_ERROR (Status)) {
       SystemTable->BootServices->FreePool (MemoryMap);
@@ -561,9 +561,9 @@ RunKernelPE (
   //  Exit boot services.
   //
   Status = SystemTable->BootServices->ExitBootServices (
-                                        ImageHandle,
-                                        MMapKey
-                                        );
+    ImageHandle,
+    MMapKey
+    );
 
   if (EFI_ERROR (Status)) {
     SystemTable->BootServices->FreePool (MemoryMap);
@@ -576,19 +576,19 @@ RunKernelPE (
     MemoryMapSize = 0;
 
     Status = SystemTable->BootServices->GetMemoryMap (
-                                          &MemoryMapSize,
-                                          MemoryMap,
-                                          &MMapKey,
-                                          &DescriptorSize,
-                                          &DescriptorVersion
-                                          );
+      &MemoryMapSize,
+      MemoryMap,
+      &MMapKey,
+      &DescriptorSize,
+      &DescriptorVersion
+      );
 
     if (Status == EFI_BUFFER_TOO_SMALL) {
       Status = SystemTable->BootServices->AllocatePool (
-                                            EfiLoaderData,
-                                            MemoryMapSize + DescriptorSize,
-                                            (VOID **)&MemoryMap
-                                            );
+        EfiLoaderData,
+        MemoryMapSize + DescriptorSize,
+        (VOID **)&MemoryMap
+        );
 
       HANDLE_STATUS (
         Status,
@@ -596,12 +596,12 @@ RunKernelPE (
         );
 
       Status = SystemTable->BootServices->GetMemoryMap (
-                                            &MemoryMapSize,
-                                            MemoryMap,
-                                            &MMapKey,
-                                            &DescriptorSize,
-                                            &DescriptorVersion
-                                            );
+        &MemoryMapSize,
+        MemoryMap,
+        &MMapKey,
+        &DescriptorSize,
+        &DescriptorVersion
+        );
 
       HANDLE_STATUS (
         Status,
@@ -616,9 +616,9 @@ RunKernelPE (
     }
 
     Status = SystemTable->BootServices->ExitBootServices (
-                                          ImageHandle,
-                                          MMapKey
-                                          );
+      ImageHandle,
+      MMapKey
+      );
 
     HANDLE_STATUS (
       Status,
@@ -639,12 +639,13 @@ RunKernelPE (
   //  Locate the EP function and call it with the arguments.
   //
   typedef void (__attribute__ ((ms_abi)) *EntryPointFunction)(
-  EFI_RUNTIME_SERVICES                         *RT,            /// Pointer to the runtime services.
-  EFI_KERN_MEMORY_MAP                          *KernMemoryMap, /// Pointer to the EFI_KERN_MEMORY_MAP.
-  ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,         /// Pointer to the DSDT pointer.
-  KERN_FRAMEBUFFER                             *Framebuffer,   /// Pointer to the KERN_FRAMEBUFFER.
-  VOID                                         *TerminalFont   /// Pointer to the PSF font file contents
-  );
+    EFI_RUNTIME_SERVICES                         *RT,                                                                      /// Pointer to the runtime services.
+    EFI_KERN_MEMORY_MAP                          *
+    KernMemoryMap,                                                                                                         /// Pointer to the EFI_KERN_MEMORY_MAP.
+    ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,                                                                   /// Pointer to the DSDT pointer.
+    KERN_FRAMEBUFFER                             *Framebuffer,                                                             /// Pointer to the KERN_FRAMEBUFFER.
+    VOID                                         *TerminalFont                                                             /// Pointer to the PSF font file contents
+    );
 
   EntryPointFunction  EntryPointPlaceholder = (EntryPointFunction)(BaseAddress + EntryPoint);
 

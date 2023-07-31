@@ -18,10 +18,10 @@ KernLocateGop (
   //  Locate the GOP using the GOP's default GUID.
   //
   Status = SystemTable->BootServices->LocateProtocol (
-                                        &GopGuid,
-                                        NULL,
-                                        (VOID **)GOP
-                                        );
+    &GopGuid,
+    NULL,
+    (VOID **)GOP
+    );
 
   if (EFI_ERROR (Status)) {
     return EFI_NOT_FOUND;
@@ -46,11 +46,11 @@ KernGetVideoMode (
   //  (or previously set) video mode.
   //
   Status = GOP->QueryMode (
-                  GOP,
-                  GOP->Mode == NULL ? 0 : GOP->Mode->Mode,
-                  SizeOfInfo,
-                  &Info
-                  );
+    GOP,
+    GOP->Mode == NULL ? 0 : GOP->Mode->Mode,
+    SizeOfInfo,
+    &Info
+    );
 
   //
   //  GOP not initialized yet, set video mode
@@ -111,16 +111,16 @@ KernModeAvailable (
 
   for (UINT32 Index = 0; Index < NumberOfModes; Index++) {
     GOP->QueryMode (
-           GOP,
-           Index,
-           SizeOfInfo,
-           &Info
-           );
+      GOP,
+      Index,
+      SizeOfInfo,
+      &Info
+      );
 
     if (
-        (Info->HorizontalResolution == 1280) &&
-        (Info->VerticalResolution == 1024)
-        )
+      (Info->HorizontalResolution == 1280) &&
+      (Info->VerticalResolution == 1024)
+      )
     {
       WantedMode = Index;
 

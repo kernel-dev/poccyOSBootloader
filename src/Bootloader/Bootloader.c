@@ -32,12 +32,12 @@ KernEfiMain (
   //  through the RSDP (but first locate the RSDP.)
   //
   Status = EfiGetTables (
-             &Rsdp,
-             &Rsdt,
-             &Xsdt,
-             &Fadt,
-             &Dsdt
-             );
+    &Rsdp,
+    &Rsdt,
+    &Xsdt,
+    &Fadt,
+    &Dsdt
+    );
 
   HANDLE_STATUS (
     Status,
@@ -111,9 +111,9 @@ KernEfiMain (
   //  Locate the GOP handle.
   //
   Status = KernLocateGop (
-             SystemTable,
-             &GOP
-             );
+    SystemTable,
+    &GOP
+    );
 
   if (Status == EFI_NOT_FOUND) {
     Print (L"Failed to initialise GOP!\n");
@@ -156,9 +156,9 @@ KernEfiMain (
   //  color pixel format.
   //
   if (
-      (GOP->Mode->Info->PixelFormat != PixelRedGreenBlueReserved8BitPerColor) &&
-      (GOP->Mode->Info->PixelFormat != PixelBlueGreenRedReserved8BitPerColor)
-      )
+    (GOP->Mode->Info->PixelFormat != PixelRedGreenBlueReserved8BitPerColor) &&
+    (GOP->Mode->Info->PixelFormat != PixelBlueGreenRedReserved8BitPerColor)
+    )
   {
     Print (L"[GOPPixels]: Unsupported pixel format! Halting boot...\r\n");
 
@@ -173,10 +173,10 @@ KernEfiMain (
   //  obtained via the GOP handle.
   //
   Status = SystemTable->BootServices->AllocatePool (
-                                        EfiLoaderCode,
-                                        sizeof (KERN_FRAMEBUFFER),
-                                        (VOID **)&Framebuffer
-                                        );
+    EfiLoaderCode,
+    sizeof (KERN_FRAMEBUFFER),
+    (VOID **)&Framebuffer
+    );
   HANDLE_STATUS (
     Status,
     L"FAILED TO ALLOCATE MEMORY POOL FOR Framebuffer PTR\r\n"
