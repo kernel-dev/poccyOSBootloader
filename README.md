@@ -15,4 +15,5 @@ __Note__: if you want to build this project yourself, please clone the AUDK repo
 ## Credits
 
 - [Mhaeuser](https://github.com/mhaeuser) — for providing this project with a rich, and high level abstraction for parsing and handling PE/COFF images (PeCoffLib2).
-- [Acidanthera](https://github.com/acidanthera) — for their fork of EDK2 ([AUDK](https://github.com/acidanthera/audk))
+- [Acidanthera](https://github.com/acidanthera) — for their fork of EDK2 ([AUDK](https://github.com/acidanthera/audk)) & [Uncrustify bootstrap](https://github.com/acidanthera/OpenCorePkg/blob/master/.github/workflows/uncrustify.yml) 
+  - FYI: If you wish to avoid the over-indentation of function arguments, set `indent_paren_after_func_call` to `false` in `uncrustify.cfg`.`
