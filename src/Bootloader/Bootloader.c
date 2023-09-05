@@ -201,7 +201,8 @@ KernEfiMain (
   RunKernelPE (
     ImageHandle,
     SystemTable,
-    &Dsdt,
+    (ACPI_XSDT *)Xsdt,
+    Dsdt,
     Framebuffer,
     GOP
     );

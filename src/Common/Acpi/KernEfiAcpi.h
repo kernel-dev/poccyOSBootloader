@@ -21,6 +21,19 @@ typedef struct {
   UINT8     CreatorRevision[4];
 } SDT_HEADER;
 
+typedef struct {
+  CHAR8                          Signature[4]; // 'X' 'S' 'D' 'T'
+  UINT32                         Length;
+  UINT8                          Revision;
+  UINT8                          Checksum;
+  CHAR8                          OEMID[6];
+  CHAR8                          OEMTableID[8];
+  UINT32                         OEMRevision;
+  CHAR8                          CreatorID[4];
+  UINT32                         CreatorRevision;
+  EFI_ACPI_DESCRIPTION_HEADER    *Entries;          // 8*n, n = Length - sizeof(SDT_HEADER)
+} __attribute__ ((packed)) ACPI_XSDT;
+
 /**
     Structure for the DSDT (Differentiated System Description Table),
     according to the ACPI 6.5 specification.

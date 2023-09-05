@@ -18,6 +18,7 @@
 
     @param[in]  ImageHandle             The image handle.
     @param[in]  SystemTable             Pointer to the system table.
+    @param[in]  Xsdt                    Pointer to the XSDT.
     @param[in]  Dsdt                    Pointer to the DSDT.
     @param[in]  FB                      Pointer to the KERN_FRAMEBUFFER
     @param[in]  GOP                     Pointer to the GOP handle.
@@ -31,7 +32,8 @@ EFI_STATUS
 RunKernelPE (
   IN EFI_HANDLE                                   ImageHandle,
   IN EFI_SYSTEM_TABLE                             *SystemTable,
-  IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  **Dsdt,
+  IN ACPI_XSDT                                    *Xsdt,
+  IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt,
   IN KERN_FRAMEBUFFER                             *FB,
   IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 *GOP
   );
