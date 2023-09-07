@@ -57,8 +57,8 @@ typedef struct {
  **/
 EFI_STATUS
 EfiLocateFadtFromXsdtOrRsdt (
-  IN  EFI_ACPI_DESCRIPTION_HEADER  *Xsdt,
-  OUT EFI_ACPI_COMMON_HEADER       **Fadt
+  IN  EFI_ACPI_DESCRIPTION_HEADER                *Xsdt,
+  OUT EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE  **Fadt
   );
 
 /**

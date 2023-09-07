@@ -15,8 +15,8 @@
 #pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
 EFI_STATUS
 EfiLocateFadtFromXsdtOrRsdt (
-  IN  EFI_ACPI_DESCRIPTION_HEADER  *Sdt,
-  OUT EFI_ACPI_COMMON_HEADER       **Fadt
+  IN  EFI_ACPI_DESCRIPTION_HEADER                *Sdt,
+  OUT EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE  **Fadt
   )
 {
   //
@@ -53,7 +53,7 @@ EfiLocateFadtFromXsdtOrRsdt (
       //
       //  We found it!
       //
-      *Fadt = Table;
+      *Fadt = (EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE *)Table;
 
       return EFI_SUCCESS;
     }
@@ -108,17 +108,30 @@ EfiGetTables (
   *Xsdt = (EFI_ACPI_DESCRIPTION_HEADER *)(*Rsdp)->XsdtAddress;
 
   Print (
-    L"===> [ACPI]: Found RSDT? = %s\n",
+    L"===> [ACPI]: Found RSDT? = %s\r\n",
     *Rsdt == NULL
             ? L"NO"
             : L"YES"
     );
 
   Print (
-    L"===> [ACPI]: Found XSDT? = %s\n",
+    L"===> [ACPI]: Found XSDT? = %s\r\n",
     *Xsdt == NULL
             ? L"NO"
             : L"YES"
+    );
+
+  Print (
+    L"===> [XSDT]: XSDT Signature = %c%c%c%c\r\n",
+    ((*Xsdt)->Signature & 0xFF),
+    ((*Xsdt)->Signature >> 8) & 0xFF,
+    ((*Xsdt)->Signature >> 16) & 0xFF,
+    ((*Xsdt)->Signature >> 24) & 0xFF
+    );
+
+  Print (
+    L"===> [XSDT]: XSDT Address: = %llx\r\n",
+    (EFI_ACPI_DESCRIPTION_HEADER *)(*Rsdp)->XsdtAddress
     );
 
   if ((*Rsdt == NULL) && (*Xsdt == NULL)) {
@@ -142,7 +155,7 @@ EfiGetTables (
     )
     )
   {
-    Status = EfiLocateFadtFromXsdtOrRsdt (*Xsdt, (EFI_ACPI_COMMON_HEADER **)Fadt);
+    Status = EfiLocateFadtFromXsdtOrRsdt (*Xsdt, Fadt);
 
     HANDLE_STATUS (
       Status,

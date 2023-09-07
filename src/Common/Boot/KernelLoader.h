@@ -32,7 +32,7 @@ EFI_STATUS
 RunKernelPE (
   IN EFI_HANDLE                                   ImageHandle,
   IN EFI_SYSTEM_TABLE                             *SystemTable,
-  IN ACPI_XSDT                                    *Xsdt,
+  IN EFI_ACPI_DESCRIPTION_HEADER                  *Xsdt,
   IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt,
   IN KERN_FRAMEBUFFER                             *FB,
   IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 *GOP

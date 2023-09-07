@@ -81,6 +81,17 @@ KernEfiMain (
     Xsdt->OemId[5]
     );
 
+
+  Print (
+    L"[XSDT]: Revision = %d\r\n",
+    Xsdt->Revision
+    );
+
+  Print (
+    L"[XSDT]: Length = %ld\r\n",
+    Xsdt->Length
+    );
+
   Print (
     L"[XSDT]: Signature Valid = %s\n\n",
     Xsdt->Signature == EFI_ACPI_2_0_EXTENDED_SYSTEM_DESCRIPTION_TABLE_SIGNATURE
@@ -201,7 +212,7 @@ KernEfiMain (
   RunKernelPE (
     ImageHandle,
     SystemTable,
-    (ACPI_XSDT *)Xsdt,
+    Xsdt,
     Dsdt,
     Framebuffer,
     GOP

@@ -26,7 +26,7 @@ EFI_STATUS
 RunKernelPE (
   IN EFI_HANDLE                                   ImageHandle,
   IN EFI_SYSTEM_TABLE                             *SystemTable,
-  IN ACPI_XSDT                                    *Xsdt,
+  IN EFI_ACPI_DESCRIPTION_HEADER                  *Xsdt,
   IN ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt,
   IN KERN_FRAMEBUFFER                             *FB,
   IN EFI_GRAPHICS_OUTPUT_PROTOCOL                 *GOP
@@ -505,6 +505,10 @@ RunKernelPE (
   Print (L"Base address = 0x%llx\r\n", (UINTN)BaseAddress);
   Print (L"Address of entry point = 0x%llx\r\n", EntryPoint);
 
+  Print (L"XSDT Signature = %s\r\n", Xsdt->Signature);
+  Print (L"XSDT Length = %lld\r\n", Xsdt->Length);
+  Print (L"XSDT OemID = %s\r\n", Xsdt->OemId);
+
   //
   //  Attempt to obtain the system memory map.
   //
@@ -640,12 +644,12 @@ RunKernelPE (
   //  Locate the EP function and call it with the arguments.
   //
   typedef void (__attribute__ ((ms_abi)) *EntryPointFunction)(
-    EFI_RUNTIME_SERVICES                         *RT,                                 /// Pointer to the runtime services.
-    EFI_KERN_MEMORY_MAP                          *KernMemoryMap,                      /// Pointer to the EFI_KERN_MEMORY_MAP.
-    ACPI_XSDT                                    *Xsdt,                               /// Pointer to the XSDT.
-    ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt,                               /// Pointer to the DSDT pointer.
-    KERN_FRAMEBUFFER                             *Framebuffer,                        /// Pointer to the KERN_FRAMEBUFFER.
-    VOID                                         *TerminalFont                        /// Pointer to the PSF font file contents
+    EFI_RUNTIME_SERVICES                         *RT,            /// Pointer to the runtime services.
+    EFI_KERN_MEMORY_MAP                          *KernMemoryMap, /// Pointer to the EFI_KERN_MEMORY_MAP.
+    EFI_ACPI_DESCRIPTION_HEADER                  *Xsdt,          /// Pointer to the XSDT.
+    ACPI_DIFFERENTIATED_SYSTEM_DESCRIPTOR_TABLE  *Dsdt,          /// Pointer to the DSDT pointer.
+    KERN_FRAMEBUFFER                             *Framebuffer,   /// Pointer to the KERN_FRAMEBUFFER.
+    VOID                                         *TerminalFont   /// Pointer to the PSF font file contents
     );
 
   EntryPointFunction  EntryPointPlaceholder = (EntryPointFunction)(BaseAddress + EntryPoint);
